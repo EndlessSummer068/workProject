@@ -1,0 +1,75 @@
+# ============================
+# 顶层目录：只保留三个目标项目
+# ============================
+/Computer Vision/
+/homework/
+/my-django/
+
+# ============================
+# Python
+# ============================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# 测试与覆盖率
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ============================
+# Node / 前端
+# ============================
+node_modules/
+.npm/
+.pnpm-store/
+yarn-error.log
+yarn.lock
+pnpm-lock.yaml
+package-lock.json
+
+# 构建产物
+dist/
+*.local
+
+# ============================
+# IDE / 编辑器
+# ============================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ============================
+# Django / FastAPI 运行时
+# ============================
+*.log
+*.sqlite3
+db.sqlite3
+local_settings.py
+.env
+.env.*
+!.env.example
+
+# 媒体文件（运行时上传，不入库）
+media/
+!**/media/.gitkeep
+
+# ============================
+# 操作系统
+# ============================
+.DS_Store
+Thumbs.db
+desktop.ini
