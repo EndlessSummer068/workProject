@@ -1,19 +1,32 @@
 class_name LevelGenerator
 extends Node2D
-## L01 关卡生成器（L01-P0-07）：读取 docs/GAME.md §6.2 区域文本 → TileMapLayer + 实体生成。
-## 数值与布局唯一来源=GAME.md §6.2/§7（TECH §8）。
+## L01 关卡生成器（L01-P0-07/07b/07c）：读取 docs/GAME.md §6.2 → TileMapLayer + 实体 + 房门。
+## 数值与布局唯一来源=GAME.md §6.2/§4.7/§7（TECH §8）。
+## 拓扑：8 区域 2D 格位（§6.2），区域间走廊直连（§4.7 宽4×长6），房门机制见 §2。
 
-const TILE := 16  # §7 tile size 16px
+const TILE := 16                       # §7 tile size 16px
+const ROOM_W := 32                     # §4.7 区域宽 32 tile
+const ROOM_H := 20                     # §4.7 区域高 20 tile
+const PITCH_X := 38                    # §4.7 水平格距（32+6 走廊）
+const PITCH_Y := 26                    # §4.7 垂直格距（20+6）
+const CORRIDOR_LEN := 6                # §4.7 走廊长 6 tile
 const DOC_PATH := "res://docs/GAME.md"
-const AREA_IDS: Array[String] = ["A1", "A2"]  # 已接入区域（A3–A8 待接入，§6.2）；区域从左到右拼接
 
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const E01_SCENE := preload("res://scenes/enemies/e01.tscn")
+const DOOR_SCENE := preload("res://scenes/levels/door_gate.tscn")
 const FLOOR_COLOR := Color("2b2b33")  # §7.2 地板
 const WALL_COLOR := Color("4a4a55")   # §7.2 墙
-const DOOR_COLOR := Color("58c4dd")   # §7.2 门
+const DOOR_COLOR := Color("58c4dd")   # §7.2 门（开）——门格地板色，门体颜色由 DoorGate 管理
 
 var player: CharacterBody2D = null
+var doors: Array[DoorGate] = []
+var _areas_cleared := {}      # area_id -> bool（§2：出生房/无敌人区域视为已清）
+var _area_enemies := {}       # area_id -> Array[EnemyE01]
+var _grid := {}               # Vector2i(col,row) -> area_id
+var _area_grid := {}          # area_id -> Vector2i(col,row)
+
+@onready var _tilemap := TileMapLayer.new()
 
 func _ready() -> void:
 	var doc := FileAccess.open(DOC_PATH, FileAccess.READ)
@@ -23,39 +36,184 @@ func _ready() -> void:
 	var doc_text := doc.get_as_text()
 	_tilemap.tile_set = _make_tileset()
 	add_child(_tilemap)
-	var total := Vector2i.ZERO
-	var x_offset := 0
-	for area_id in AREA_IDS:
+	# 第一遍：解析全部区域（拓扑格位需全集，邻接查找才完整）
+	var parsed: Array = []  # [area_id, data, grid]
+	for area_id in ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"]:  # §6.2 拓扑表
 		var lines := LevelParser.extract_area(doc_text, area_id)
 		var data := LevelParser.parse(lines)
-		var size: Vector2i = data["size"]
-		if size == Vector2i.ZERO:
+		if data["size"] == Vector2i.ZERO:
 			push_error("[Level] 区域 %s 解析失败（尺寸 0）" % area_id)
 			continue
-		_build_tiles(data, x_offset)
-		_spawn_entities(data, x_offset)
-		total = Vector2i(maxi(total.x, x_offset + size.x), maxi(total.y, size.y))
-		x_offset += size.x
-		print("[Level] %s 生成完成：size=%s offset_x=%d tiles=%d" % [area_id, size, x_offset - size.x, data["cells"].size()])
-	_setup_camera(total)
-	print("[Level] 全区域总尺寸=%s px" % (total * TILE))
+		var grid := LevelParser.extract_grid(lines)
+		_grid[grid] = area_id
+		_area_grid[area_id] = grid
+		parsed.append([area_id, data, grid])
+	# 第二遍：生成
+	var x_extent := 0
+	var y_extent := 0
+	for entry: Array in parsed:
+		var area_id: String = entry[0]
+		var data: Dictionary = entry[1]
+		var grid: Vector2i = entry[2]
+		var origin := Vector2i(grid.x * PITCH_X, grid.y * PITCH_Y)  # §4.7 格距
+		_build_tiles(data, origin)
+		_spawn_entities(area_id, data, origin)
+		x_extent = maxi(x_extent, origin.x + ROOM_W)
+		y_extent = maxi(y_extent, origin.y + ROOM_H)
+		print("[Level] %s 生成：格位=%s origin=%s" % [area_id, grid, origin * TILE])
+	_build_corridors()
+	for entry: Array in parsed:  # §2：出生房/无敌人区域视为已清 → 四周门默认解锁
+		var area_id: String = entry[0]
+		if not _area_enemies.has(area_id):
+			_mark_cleared(area_id)
+	_setup_camera(Vector2i(x_extent, y_extent))
+	print("[Level] 全地图=%d×%d tile 门=%d 已清=%s" % [x_extent, y_extent, doors.size(), _areas_cleared])
 
-@onready var _tilemap := TileMapLayer.new()
-
-func _build_tiles(data: Dictionary, x_offset: int) -> void:
+# ---------- 区域 ----------
+func _build_tiles(data: Dictionary, origin: Vector2i) -> void:
 	var cells: Dictionary = data["cells"]
 	for cell: Vector2i in cells:
 		var token: String = cells[cell]
-		var pos := cell + Vector2i(x_offset, 0)
+		var pos := cell + origin
 		match token:
 			"#":
-				_tilemap.set_cell(pos, 0, Vector2i(1, 0))  # 墙（物理碰撞来自 TileSet 物理层）
+				_tilemap.set_cell(pos, 0, Vector2i(1, 0))  # 墙（TileSet 物理层）
 			"D":
-				_tilemap.set_cell(pos, 0, Vector2i(2, 0))  # 门：可通行（无物理）
+				_tilemap.set_cell(pos, 0, Vector2i(2, 0))  # 门格：可通行（碰撞由 DoorGate 管理）
 			_:
 				_tilemap.set_cell(pos, 0, Vector2i(0, 0))  # 地板
 
-## 占位 TileSet：48×16 图像 地板/墙/门（§7.2 色板）；墙格带全格物理多边形（层1 world），围墙防撞。
+func _spawn_entities(area_id: String, data: Dictionary, origin: Vector2i) -> void:
+	var door_cells: Array[Vector2i] = []
+	for e: Dictionary in data["entities"]:
+		var id: String = e["id"]
+		var cell: Vector2i = e["cell"]
+		var pos: Vector2 = Vector2(cell + origin) * TILE + Vector2(TILE, TILE) * 0.5
+		match id:
+			"P":
+				player = PLAYER_SCENE.instantiate()
+				add_child(player)
+				player.global_position = pos
+			"E01":
+				var enemy: CharacterBody2D = E01_SCENE.instantiate()
+				add_child(enemy)
+				enemy.global_position = pos
+				if not _area_enemies.has(area_id):
+					_area_enemies[area_id] = []
+				_area_enemies[area_id].append(enemy)
+				enemy.died.connect(_on_area_enemy_died.bind(area_id))
+			"D":
+				door_cells.append(cell)
+			_:
+				print("[Level] 实体 %s 未实装，跳过（%s @ %s）" % [id, area_id, cell])
+	# 门格来源①：cells 中 token=="D"（E/W 缘 '#D#'）
+	for cell: Vector2i in data["cells"]:
+		if data["cells"][cell] == "D":
+			door_cells.append(cell)
+	_build_doors(area_id, door_cells, origin)
+
+# ---------- 房门（§2） ----------
+## 门格按边缘分组（连续 4 格=一扇门），生成 DoorGate；方向决定邻接区域（edge key）。
+func _build_doors(area_id: String, cells: Array[Vector2i], origin: Vector2i) -> void:
+	var by_edge := {"E": [], "W": [], "N": [], "S": []}
+	for c in cells:
+		if c.x == ROOM_W - 1:
+			by_edge["E"].append(c)
+		elif c.x == 0:
+			by_edge["W"].append(c)
+		elif c.y == 0:
+			by_edge["N"].append(c)
+		elif c.y == ROOM_H - 1:
+			by_edge["S"].append(c)
+	for edge: String in by_edge:
+		var list: Array = by_edge[edge]
+		if list.is_empty():
+			continue
+		list.sort()
+		var run: Array[Vector2i] = []
+		for c: Vector2i in list:
+			if not run.is_empty() and (c - run[-1]).length_squared() > 1:
+				_flush_gate(area_id, edge, run, origin)
+				run = []
+			run.append(c)
+		_flush_gate(area_id, edge, run, origin)
+
+func _flush_gate(area_id: String, edge: String, run: Array[Vector2i], origin: Vector2i) -> void:
+	if run.is_empty():
+		return
+	var grid: Vector2i = _area_grid[area_id]
+	var neighbor := ""
+	match edge:
+		"E": neighbor = _grid.get(grid + Vector2i.RIGHT, "")
+		"W": neighbor = _grid.get(grid + Vector2i.LEFT, "")
+		"N": neighbor = _grid.get(grid + Vector2i.UP, "")
+		"S": neighbor = _grid.get(grid + Vector2i.DOWN, "")
+	var horizontal := edge == "E" or edge == "W"
+	var gate_size := Vector2(TILE, 4 * TILE) if horizontal else Vector2(4 * TILE, TILE)
+	var sum := Vector2.ZERO
+	for c in run:
+		sum += Vector2(c + origin) * TILE + Vector2(TILE, TILE) * 0.5
+	var gate: DoorGate = DOOR_SCENE.instantiate()
+	add_child(gate)
+	gate.global_position = sum / run.size()
+	gate.setup(gate_size)
+	gate.set_meta("edge", "%s|%s|%s" % [edge, area_id, neighbor])
+	gate.add_to_group("door_%s" % _edge_key(area_id, neighbor))
+	doors.append(gate)
+	if player != null:
+		gate.set_player(player)
+
+func _edge_key(a: String, b: String) -> String:
+	return "%s-%s" % [mini(a.hash(), b.hash()), maxi(a.hash(), b.hash())]
+
+## 区域敌人全灭 → 区域已清（§2）→ 两端门解锁（已清区域间保持解锁可回头）。
+func _on_area_enemy_died(area_id: String) -> void:
+	if _area_enemies.has(area_id):
+		for e in _area_enemies[area_id]:
+			if is_instance_valid(e) and e.hp > 0:
+				return
+	_mark_cleared(area_id)
+
+func _mark_cleared(area_id: String) -> void:
+	if _areas_cleared.get(area_id, false):
+		return
+	_areas_cleared[area_id] = true
+	for gate in doors:
+		var parts: PackedStringArray = String(gate.get_meta("edge")).split("|")
+		if parts[1] == area_id or parts[2] == area_id:
+			gate.unlock()
+	print("[Level] 区域 %s 已清 → 四周房门解锁" % area_id)
+
+# ---------- 走廊（§4.7 宽4×长6，无敌人） ----------
+func _build_corridors() -> void:
+	for grid: Vector2i in _grid:
+		if _grid.has(grid + Vector2i.RIGHT):  # 东向走廊：行 7..12（墙）含地板行 8..11
+			var origin := Vector2i(grid.x * PITCH_X + ROOM_W, grid.y * PITCH_Y + ROOM_H / 2 - 3)
+			_fill_corridor(origin, Vector2i(0, 1), Vector2i(CORRIDOR_LEN, CORRIDOR_LEN), Vector2i(CORRIDOR_LEN, 4))
+		if _grid.has(grid + Vector2i.DOWN):  # 南向走廊：列 13..18（墙）含地板列 14..17
+			var origin2 := Vector2i(grid.x * PITCH_X + ROOM_W / 2 - 3, grid.y * PITCH_Y + ROOM_H)
+			_fill_corridor(origin2, Vector2i(1, 0), Vector2i(CORRIDOR_LEN, CORRIDOR_LEN), Vector2i(4, CORRIDOR_LEN))
+
+## 走廊填充：外圈墙矩形 + 内部地板矩形（floor_off 为地板相对外圈的偏移）。
+func _fill_corridor(origin: Vector2i, floor_off: Vector2i, outer: Vector2i, floor_size: Vector2i) -> void:
+	for y in outer.y:
+		for x in outer.x:
+			_tilemap.set_cell(origin + Vector2i(x, y), 0, Vector2i(1, 0))
+	for y in floor_size.y:
+		for x in floor_size.x:
+			_tilemap.set_cell(origin + floor_off + Vector2i(x, y), 0, Vector2i(0, 0))
+
+# ---------- 公共 ----------
+func _setup_camera(size: Vector2i) -> void:
+	if player == null:
+		return
+	var cam: Camera2D = player.get_node("Camera2D")
+	cam.limit_left = 0
+	cam.limit_top = 0
+	cam.limit_right = size.x * TILE
+	cam.limit_bottom = size.y * TILE
+
+## 占位 TileSet：48×16 地板/墙/门格；墙格全格物理（层1 world，§7 防撞）。
 func _make_tileset() -> TileSet:
 	var ts := TileSet.new()
 	ts.tile_size = Vector2i(TILE, TILE)
@@ -68,37 +226,11 @@ func _make_tileset() -> TileSet:
 	img.fill_rect(Rect2i(16, 0, 16, 16), WALL_COLOR)
 	img.fill_rect(Rect2i(32, 0, 16, 16), DOOR_COLOR)
 	src.texture = ImageTexture.create_from_image(img)
-	ts.add_source(src, 0)  # 必须先入 TileSet，TileData 才有物理层上下文（tile_set.cpp 报错根因）
+	ts.add_source(src, 0)  # 先入 TileSet，TileData 才有物理层上下文
 	for atlas_x in 3:
 		src.create_tile(Vector2i(atlas_x, 0))
-		if atlas_x == 1:  # 仅墙格有物理；地板/门可通行
+		if atlas_x == 1:  # 仅墙有物理
 			var td := src.get_tile_data(Vector2i(atlas_x, 0), 0)
 			td.add_collision_polygon(0)
 			td.set_collision_polygon_points(0, 0, PackedVector2Array([Vector2(-8, -8), Vector2(8, -8), Vector2(8, 8), Vector2(-8, 8)]))
 	return ts
-
-func _spawn_entities(data: Dictionary, x_offset: int) -> void:
-	for e: Dictionary in data["entities"]:
-		var id: String = e["id"]
-		var pos: Vector2 = Vector2(e["cell"]) * TILE + Vector2(TILE, TILE) * 0.5 + Vector2(x_offset * TILE, 0)
-		match id:
-			"P":
-				player = PLAYER_SCENE.instantiate()
-				add_child(player)
-				player.global_position = pos
-			"E01":
-				var enemy := E01_SCENE.instantiate()
-				add_child(enemy)
-				enemy.global_position = pos
-			_:
-				print("[Level] 实体 %s 未实装，跳过（%s）" % [id, e["cell"]])
-
-## 相机 Limits 钳到区域像素边界（§8 提案，正式区域钳制归 L01-P1-01）。
-func _setup_camera(size: Vector2i) -> void:
-	if player == null:
-		return
-	var cam: Camera2D = player.get_node("Camera2D")
-	cam.limit_left = 0
-	cam.limit_top = 0
-	cam.limit_right = size.x * TILE
-	cam.limit_bottom = size.y * TILE

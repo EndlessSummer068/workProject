@@ -31,7 +31,16 @@ static func extract_area(doc_text: String, area_id: String) -> PackedStringArray
 				result.append(line)
 	return result
 
-## 从区域文本解析尺寸（头行 "#### A1（48×32 tile..." 不在围栏内，故全文搜索首个 "(\d+×\d+)" 模式）。
+## 从区域头（如 "#### A2（32×20 tile，战斗区 | 格位 col=1,row=1）"）解析拓扑格位（§6.2）。
+static func extract_grid(lines: PackedStringArray) -> Vector2i:
+	var regex := RegEx.new()
+	regex.compile("格位\\s*col=(\\d+)\\s*,\\s*row=(\\d+)")
+	for line in lines:
+		if line.begins_with("#### "):
+			var m := regex.search(line)
+			if m != null:
+				return Vector2i(int(m.get_string(1)), int(m.get_string(2)))
+	return Vector2i.ZERO
 static func extract_size(lines: PackedStringArray) -> Vector2i:
 	var regex := RegEx.new()
 	regex.compile("[（(]\\s*(\\d+)\\s*×\\s*(\\d+)")
