@@ -1,0 +1,62 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/test_arena_grid.gd" id="1_g"]
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_p"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_h"]
+size = Vector2(1312, 16)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_v"]
+size = Vector2(16, 1472)
+
+[node name="TestArena" type="Node2D"]
+
+[node name="Floor" type="Polygon2D" parent="."]
+color = Color(0.5, 0.5, 0.5, 1)
+polygon = PackedVector2Array(0, 0, 1280, 0, 1280, 720, 0, 720)
+
+[node name="GridLayer" type="Node2D" parent="."]
+script = ExtResource("1_g")
+
+[node name="WallTop" type="StaticBody2D" parent="."]
+position = Vector2(640, -8)
+
+[node name="Shape" type="CollisionShape2D" parent="WallTop"]
+shape = SubResource("RectangleShape2D_h")
+
+[node name="Visual" type="Polygon2D" parent="WallTop"]
+color = Color(1, 1, 1, 1)
+polygon = PackedVector2Array(-656, -8, 656, -8, 656, 8, -656, 8)
+
+[node name="WallBottom" type="StaticBody2D" parent="."]
+position = Vector2(640, 728)
+
+[node name="Shape" type="CollisionShape2D" parent="WallBottom"]
+shape = SubResource("RectangleShape2D_h")
+
+[node name="Visual" type="Polygon2D" parent="WallBottom"]
+color = Color(1, 1, 1, 1)
+polygon = PackedVector2Array(-656, -8, 656, -8, 656, 8, -656, 8)
+
+[node name="WallLeft" type="StaticBody2D" parent="."]
+position = Vector2(-8, 352)
+
+[node name="Shape" type="CollisionShape2D" parent="WallLeft"]
+shape = SubResource("RectangleShape2D_v")
+
+[node name="Visual" type="Polygon2D" parent="WallLeft"]
+color = Color(1, 1, 1, 1)
+polygon = PackedVector2Array(-8, -736, 8, -736, 8, 736, -8, 736)
+
+[node name="WallRight" type="StaticBody2D" parent="."]
+position = Vector2(1288, 352)
+
+[node name="Shape" type="CollisionShape2D" parent="WallRight"]
+shape = SubResource("RectangleShape2D_v")
+
+[node name="Visual" type="Polygon2D" parent="WallRight"]
+color = Color(1, 1, 1, 1)
+polygon = PackedVector2Array(-8, -736, 8, -736, 8, 736, -8, 736)
+
+[node name="Player" parent="." instance=ExtResource("2_p")]
+position = Vector2(640, 360)

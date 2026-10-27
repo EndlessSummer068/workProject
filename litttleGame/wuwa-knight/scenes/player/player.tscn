@@ -16,3 +16,11 @@ shape = SubResource("RectangleShape2D_p1")
 [node name="Visual" type="Polygon2D" parent="."]
 color = Color(0.94902, 0.83529, 0.49412, 1)
 polygon = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+zoom = Vector2(3, 3)
+limit_left = 0
+limit_top = 0
+limit_right = 1280
+limit_bottom = 720
+position_smoothing_enabled = true
