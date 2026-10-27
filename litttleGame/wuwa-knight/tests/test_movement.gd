@@ -20,8 +20,8 @@ func _run() -> void:
 	var player := level.get_node("Player") as CharacterBody2D
 
 	# TEST1: 按住 W 1 秒 → dy = -160 ±5%（§4.1 移速）
-	# 07c 起出生点距 A1 顶墙不足 160px，先传送到房间内保证跑道（不改变验收阈值）
-	player.global_position = Vector2(256, 640)
+	# 出生点距 A1 顶墙不足 160px（07c 缩尺+08 走廊加长后），先传送到房间内保证跑道（不改变验收阈值）
+	player.global_position = Vector2(256, 720)
 	player.velocity = Vector2.ZERO
 	var y0 := player.global_position.y
 	Input.action_press("move_up")
@@ -33,7 +33,7 @@ func _run() -> void:
 
 	await physics_frame
 	# TEST2: W+D 1 秒 → 合速度 160±5%、方向 45°（§3 八方向）
-	player.global_position = Vector2(256, 640)
+	player.global_position = Vector2(256, 720)
 	player.velocity = Vector2.ZERO
 	var x0 := player.global_position.x
 	y0 = player.global_position.y

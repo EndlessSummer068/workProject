@@ -2,19 +2,20 @@ class_name LevelGenerator
 extends Node2D
 ## L01 关卡生成器（L01-P0-07/07b/07c）：读取 docs/GAME.md §6.2 → TileMapLayer + 实体 + 房门。
 ## 数值与布局唯一来源=GAME.md §6.2/§4.7/§7（TECH §8）。
-## 拓扑：8 区域 2D 格位（§6.2），区域间走廊直连（§4.7 宽4×长6），房门机制见 §2。
+## 拓扑：8 区域 2D 格位（§6.2），区域间走廊直连（§4.7 宽4×长12），房门机制见 §2；死亡流程 §9（L01-P0-08）。
 
 const TILE := 16                       # §7 tile size 16px
 const ROOM_W := 32                     # §4.7 区域宽 32 tile
 const ROOM_H := 20                     # §4.7 区域高 20 tile
-const PITCH_X := 38                    # §4.7 水平格距（32+6 走廊）
-const PITCH_Y := 26                    # §4.7 垂直格距（20+6）
-const CORRIDOR_LEN := 6                # §4.7 走廊长 6 tile
+const PITCH_X := 44                    # §4.7 水平格距（32+12 走廊）
+const PITCH_Y := 32                    # §4.7 垂直格距（20+12）
+const CORRIDOR_LEN := 12               # §4.7 走廊长 12 tile（L01-P0-08 用户指令加长，提案值）
 const DOC_PATH := "res://docs/GAME.md"
 
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const E01_SCENE := preload("res://scenes/enemies/e01.tscn")
 const DOOR_SCENE := preload("res://scenes/levels/door_gate.tscn")
+const DEATH_DIALOG := preload("res://scenes/ui/death_dialog.tscn")  # §8 死亡弹窗（L01-P0-08）
 const FLOOR_COLOR := Color("2b2b33")  # §7.2 地板
 const WALL_COLOR := Color("4a4a55")   # §7.2 墙
 const DOOR_COLOR := Color("58c4dd")   # §7.2 门（开）——门格地板色，门体颜色由 DoorGate 管理
@@ -67,6 +68,8 @@ func _ready() -> void:
 		if not _area_enemies.has(area_id):
 			_mark_cleared(area_id)
 	_setup_camera(Vector2i(x_extent, y_extent))
+	if player != null:
+		player.died.connect(_on_player_died)  # §9 死亡弹窗（L01-P0-08）
 	print("[Level] 全地图=%d×%d tile 门=%d 已清=%s" % [x_extent, y_extent, doors.size(), _areas_cleared])
 
 # ---------- 区域 ----------
@@ -184,15 +187,15 @@ func _mark_cleared(area_id: String) -> void:
 			gate.unlock()
 	print("[Level] 区域 %s 已清 → 四周房门解锁" % area_id)
 
-# ---------- 走廊（§4.7 宽4×长6，无敌人） ----------
+# ---------- 走廊（§4.7 宽4×长12，无敌人） ----------
 func _build_corridors() -> void:
 	for grid: Vector2i in _grid:
-		if _grid.has(grid + Vector2i.RIGHT):  # 东向走廊：行 7..12（墙）含地板行 8..11
+		if _grid.has(grid + Vector2i.RIGHT):  # 东向走廊：地板行 8..11（4 行）+ 上下墙
 			var origin := Vector2i(grid.x * PITCH_X + ROOM_W, grid.y * PITCH_Y + ROOM_H / 2 - 3)
-			_fill_corridor(origin, Vector2i(0, 1), Vector2i(CORRIDOR_LEN, CORRIDOR_LEN), Vector2i(CORRIDOR_LEN, 4))
-		if _grid.has(grid + Vector2i.DOWN):  # 南向走廊：列 13..18（墙）含地板列 14..17
+			_fill_corridor(origin, Vector2i(0, 1), Vector2i(CORRIDOR_LEN, 6), Vector2i(CORRIDOR_LEN, 4))
+		if _grid.has(grid + Vector2i.DOWN):  # 南向走廊：地板列 14..17（4 列）+ 左右墙
 			var origin2 := Vector2i(grid.x * PITCH_X + ROOM_W / 2 - 3, grid.y * PITCH_Y + ROOM_H)
-			_fill_corridor(origin2, Vector2i(1, 0), Vector2i(CORRIDOR_LEN, CORRIDOR_LEN), Vector2i(4, CORRIDOR_LEN))
+			_fill_corridor(origin2, Vector2i(1, 0), Vector2i(6, CORRIDOR_LEN), Vector2i(4, CORRIDOR_LEN))
 
 ## 走廊填充：外圈墙矩形 + 内部地板矩形（floor_off 为地板相对外圈的偏移）。
 func _fill_corridor(origin: Vector2i, floor_off: Vector2i, outer: Vector2i, floor_size: Vector2i) -> void:
@@ -212,6 +215,18 @@ func _setup_camera(size: Vector2i) -> void:
 	cam.limit_top = 0
 	cam.limit_right = size.x * TILE
 	cam.limit_bottom = size.y * TILE
+
+## 玩家 HP 归 0 → 死亡弹窗（§8/§9，L01-P0-08）。
+func _on_player_died() -> void:
+	var dialog: DeathDialog = DEATH_DIALOG.instantiate()
+	add_child(dialog)
+	dialog.retry_requested.connect(_on_retry)
+	dialog.show_dialog()
+	print("[Level] 玩家死亡 → 死亡弹窗")
+
+## 「重新挑战」：重载当前关场景=回 A1 出生点、升级清空、怪物复活（§9）。
+func _on_retry() -> void:
+	get_tree().reload_current_scene()
 
 ## 占位 TileSet：48×16 地板/墙/门格；墙格全格物理（层1 world，§7 防撞）。
 func _make_tileset() -> TileSet:

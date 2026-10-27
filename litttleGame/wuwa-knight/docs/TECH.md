@@ -41,6 +41,7 @@ res://
 │   ├── enemies/
 │   ├── bullets/
 │   ├── rewards/
+│   ├── ui/            # 死亡弹窗等界面脚本（L01-P0-08 新增）
 │   └── levels/        # 区域生成器、相机钳制
 ├── assets/            # 暂空，素材后补
 ├── docs/              # GAME.md、TECH.md（不打包，见 §15）
