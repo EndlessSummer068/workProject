@@ -47,6 +47,8 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 ## 受击（玩家近战判定调用）；HP 归零 → 掉落 R01（§4.5）并发出 died 信号后销毁。
+## 注意：本方法可能在物理回调（melee_arc body_entered）中执行，生成 R01 必须 call_deferred，
+## 否则触发 "Can't change this state while flushing queries"（物理刷新期禁改场景树）。
 func take_damage(amount: int) -> void:
 	if hp <= 0:
 		return
@@ -54,10 +56,13 @@ func take_damage(amount: int) -> void:
 	hp_changed.emit(hp, MAX_HP)
 	if hp == 0:
 		died.emit()
-		var r01: Area2D = R01_SCENE.instantiate()
-		get_parent().add_child(r01)
-		r01.global_position = global_position
+		_spawn_drop.call_deferred(global_position)
 		queue_free()
+
+func _spawn_drop(pos: Vector2) -> void:
+	var r01: Area2D = R01_SCENE.instantiate()
+	get_parent().add_child(r01)
+	r01.global_position = pos
 
 func _on_detect_entered(body: Node2D) -> void:
 	if _target == null and body.has_method("take_damage"):
