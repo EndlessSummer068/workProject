@@ -15,7 +15,8 @@ static func extract_area(doc_text: String, area_id: String) -> PackedStringArray
 	var header := "#### %s（" % area_id
 	var result := PackedStringArray()
 	var stage := 0
-	for line in lines:
+	for raw_line in lines:
+		var line := raw_line.lstrip("﻿")  # 容错：文档中混入的 BOM 字符（U+FEFF）
 		match stage:
 			0:
 				if line.begins_with(header):
