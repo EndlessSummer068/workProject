@@ -98,5 +98,29 @@ shape = SubResource("RectangleShape2D_d")
 color = Color(0.85, 0.15, 0.15, 1)
 polygon = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
 
+[node name="Dummy4" type="StaticBody2D" parent="."]
+position = Vector2(684, 360)
+collision_layer = 4
+script = ExtResource("3_d")
+
+[node name="Shape" type="CollisionShape2D" parent="Dummy4"]
+shape = SubResource("RectangleShape2D_d")
+
+[node name="Visual" type="Polygon2D" parent="Dummy4"]
+color = Color(0.85, 0.15, 0.15, 1)
+polygon = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
+
+[node name="Dummy5" type="StaticBody2D" parent="."]
+position = Vector2(640, 316)
+collision_layer = 4
+script = ExtResource("3_d")
+
+[node name="Shape" type="CollisionShape2D" parent="Dummy5"]
+shape = SubResource("RectangleShape2D_d")
+
+[node name="Visual" type="Polygon2D" parent="Dummy5"]
+color = Color(0.85, 0.15, 0.15, 1)
+polygon = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
+
 [node name="Player" parent="." instance=ExtResource("2_p")]
 position = Vector2(640, 360)

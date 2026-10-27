@@ -20,6 +20,10 @@ config/icon="res://icon.svg"
 BulletPool="*res://scripts/autoload/bullet_pool.gd"
 Debug="*res://scripts/autoload/debug.gd"
 
+[debug]
+
+shapes/collision/visible=true
+
 [display]
 
 window/size/viewport_width=1152

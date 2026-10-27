@@ -1,6 +1,6 @@
 class_name Player
 extends CharacterBody2D
-## P01 漂泊者（GAME.md §5）。八方向移动（§3）+ 攻击触发与冷却（§4.2）。
+## P01 漂泊者（GAME.md §5）。八方向移动（§3）+ 近战攻击（§4.2 W01）。
 ## 锚点=中心（§7）。状态机约定见 TECH.md §11。
 
 signal state_changed(from: State, to: State)
@@ -10,15 +10,12 @@ enum State { IDLE, MOVE }
 
 const MOVE_SPEED: float = Balance.PLAYER_MOVE_SPEED  # §4.1 玩家移速 160 px/s
 const ATTACK_COOLDOWN: float = Balance.WEAPON_W01_ATTACK_INTERVAL  # §4.2 近战攻击间隔 0.5s
-const ATTACK_FLASH_TIME: float = 0.1  # 攻击触发指示显示时长（占位表现，非判定实体）
 const FACING_DEFAULT := Vector2.RIGHT  # 初始朝向（提案：§2 朝向=最后移动方向）
+const MELEE_ARC_SCENE := preload("res://scenes/bullets/melee_arc.tscn")  # §4.2 W01 扇形判定
 
 var facing: Vector2 = FACING_DEFAULT
 var _state: State = State.IDLE
 var _attack_timer: float = 0.0
-var _flash_timer: float = 0.0
-
-@onready var _attack_flash: Polygon2D = $AttackFlash
 
 func _physics_process(delta: float) -> void:
 	var input_dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
@@ -35,16 +32,12 @@ func _physics_process(delta: float) -> void:
 		_state = next
 		state_changed.emit(prev, next)
 
-func _process(delta: float) -> void:
-	if _flash_timer > 0.0:
-		_flash_timer -= delta
-		if _flash_timer <= 0.0:
-			_attack_flash.visible = false
-
-## 触发一次攻击：冷却计时、朝向指示、发出信号。判定实体在 L01-P0-04 实装（§4.2 W01 扇形）。
+## 触发一次攻击：冷却计时、发出信号、在朝向生成扇形判定实体（L01-P0-04，§4.2 W01）。
 func _attack() -> void:
 	_attack_timer = ATTACK_COOLDOWN
-	_attack_flash.rotation = facing.angle()
-	_attack_flash.visible = true
-	_flash_timer = ATTACK_FLASH_TIME
 	attacked.emit(facing)
+	var arc: Area2D = MELEE_ARC_SCENE.instantiate()
+	arc.setup()  # 进树前构建扇形多边形（进树后赋值不生成物理形状）
+	get_parent().add_child(arc)
+	arc.global_position = global_position
+	arc.rotation = facing.angle()
