@@ -7,8 +7,9 @@ extends Area2D
 const ARC_RADIUS: float = Balance.WEAPON_W01_ARC_RADIUS  # §4.2 半径 48px
 const ARC_DEG: float = Balance.WEAPON_W01_ARC_DEG        # §4.2 夹角 120°
 const ARC_SEGMENTS := 12
-const DAMAGE := Balance.WEAPON_W01_ATTACK_DAMAGE         # §4.2 W01 攻击力 10
 const LIFETIME := 0.1  # 判定存活时长（s）：覆盖物理配对建立所需帧数，且 < §4.2 攻击间隔
+
+var damage: int = Balance.WEAPON_W01_ATTACK_DAMAGE  # §4.2 W01 基础伤害 10；由玩家写入实际攻击力（§4.1 成长）
 
 var _hit_bodies: Array[Node2D] = []
 
@@ -32,4 +33,4 @@ func _on_body_entered(body: Node2D) -> void:
 	if body in _hit_bodies or not body.has_method("take_damage"):
 		return
 	_hit_bodies.append(body)
-	body.take_damage(DAMAGE)
+	body.take_damage(damage)

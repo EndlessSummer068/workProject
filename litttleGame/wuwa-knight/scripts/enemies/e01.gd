@@ -14,6 +14,7 @@ const MOVE_SPEED: float = Balance.E01_MOVE_SPEED        # §4.4 E01 移速 80 px
 const DAMAGE := Balance.E01_DAMAGE                      # §4.4 E01 伤害 1（撞击）
 const DAMAGE_TICK: float = Balance.PLAYER_DAMAGE_TICK   # §4.1 伤害结算间隔 0.5s（提案）
 const MAX_HP := Balance.E01_MAX_HP                      # §4.4 E01 HP 8
+const R01_SCENE := preload("res://scenes/rewards/r01.tscn")  # §4.5 掉落 R01
 
 var hp: int = MAX_HP
 var _state: State = State.IDLE
@@ -45,7 +46,7 @@ func _physics_process(delta: float) -> void:
 				velocity = Vector2.ZERO
 	move_and_slide()
 
-## 受击（玩家近战判定调用）；HP 归零 → 发出掉落信号并销毁（掉落物归 L01-P0-06）。
+## 受击（玩家近战判定调用）；HP 归零 → 掉落 R01（§4.5）并发出 died 信号后销毁。
 func take_damage(amount: int) -> void:
 	if hp <= 0:
 		return
@@ -53,6 +54,9 @@ func take_damage(amount: int) -> void:
 	hp_changed.emit(hp, MAX_HP)
 	if hp == 0:
 		died.emit()
+		var r01: Area2D = R01_SCENE.instantiate()
+		get_parent().add_child(r01)
+		r01.global_position = global_position
 		queue_free()
 
 func _on_detect_entered(body: Node2D) -> void:

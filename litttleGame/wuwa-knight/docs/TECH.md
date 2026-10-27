@@ -31,6 +31,7 @@ res://
 │   ├── player/        # P01/P02 玩家场景
 │   ├── enemies/       # E01–E05、B01 场景
 │   ├── bullets/       # 子弹场景（近战判定区也在此）
+│   ├── rewards/       # R01 等掉落奖励场景（L01-P0-06 新增）
 │   ├── levels/        # level.tscn 主关卡
 │   └── ui/            # HUD
 ├── scripts/
@@ -39,6 +40,7 @@ res://
 │   ├── player/
 │   ├── enemies/
 │   ├── bullets/
+│   ├── rewards/
 │   └── levels/        # 区域生成器、相机钳制
 ├── assets/            # 暂空，素材后补
 ├── docs/              # GAME.md、TECH.md（不打包，见 §15）

@@ -6,19 +6,31 @@ extends CharacterBody2D
 signal state_changed(from: State, to: State)
 signal attacked(facing: Vector2)
 signal hp_changed(current: int, max_hp: int)
+signal exp_changed(current: int, need: int)
+signal leveled_up(level: int)
+signal coins_changed(total: int)
 signal died
 
 enum State { IDLE, MOVE }
 
 const MOVE_SPEED: float = Balance.PLAYER_MOVE_SPEED  # §4.1 玩家移速 160 px/s
 const ATTACK_COOLDOWN: float = Balance.WEAPON_W01_ATTACK_INTERVAL  # §4.2 近战攻击间隔 0.5s
-const MAX_HP := Balance.PLAYER_MAX_HP  # §4.1 玩家 HP 6
+const ATTACK_BASE: int = Balance.WEAPON_W01_ATTACK_DAMAGE  # §4.2 W01 攻击力 10
+const LEVELUP_HP_BONUS := Balance.LEVELUP_HP_BONUS          # §4.1 升级成长 HP 上限+1
+const LEVELUP_ATTACK_BONUS: float = Balance.LEVELUP_ATTACK_BONUS  # §4.1 升级成长 攻击+10%/级
+const LEVELUP_BASE_EXP := Balance.LEVELUP_BASE_EXP          # §4.5 LV2 需 20（提案）
+const LEVELUP_EXP_STEP := Balance.LEVELUP_EXP_STEP          # §4.5 每级+10（提案）
 const HURT_FLASH_TIME: float = 0.15  # 受击反馈闪烁时长（占位表现，非 §4 字段）
 const FACING_DEFAULT := Vector2.RIGHT  # 初始朝向（提案：§2 朝向=最后移动方向）
 const MELEE_ARC_SCENE := preload("res://scenes/bullets/melee_arc.tscn")  # §4.2 W01 扇形判定
 
 var facing: Vector2 = FACING_DEFAULT
-var hp: int = MAX_HP
+var max_hp: int = Balance.PLAYER_MAX_HP  # §4.1 玩家 HP 6
+var hp: int = max_hp
+var level := 1
+var exp_current := 0
+var exp_next := LEVELUP_BASE_EXP
+var coins := 0
 var _state: State = State.IDLE
 var _attack_timer: float = 0.0
 var _hurt_timer: float = 0.0
@@ -31,6 +43,24 @@ func _process(delta: float) -> void:
 		if _hurt_timer <= 0.0:
 			_visual.modulate = Color.WHITE
 
+## 攻击力 = W01 基础 × (1 + 10%×(等级-1))，四舍五入（§4.1 升级成长）。
+func attack_power() -> int:
+	return int(round(ATTACK_BASE * (1.0 + LEVELUP_ATTACK_BONUS * float(level - 1))))
+
+## 拾取 R01：经验入账（溢出累进）、金币入账；升级 HP 上限+1、攻击+10%（§4.1）。
+func gain_reward(exp_gain: int, coin_gain: int) -> void:
+	coins += coin_gain
+	coins_changed.emit(coins)
+	exp_current += exp_gain
+	while exp_current >= exp_next:
+		exp_current -= exp_next
+		level += 1
+		max_hp += LEVELUP_HP_BONUS
+		exp_next += LEVELUP_EXP_STEP
+		leveled_up.emit(level)
+	exp_changed.emit(exp_current, exp_next)
+	print("[Player] Lv=%d HP=%d/%d ATK=%d EXP=%d/%d 金币=%d" % [level, hp, max_hp, attack_power(), exp_current, exp_next, coins])
+
 ## 受击（§4.1：无敌帧已移除，伤害结算间隔由伤害来源自行控制）。
 func take_damage(amount: int) -> void:
 	if hp <= 0:
@@ -38,7 +68,7 @@ func take_damage(amount: int) -> void:
 	hp = maxi(hp - amount, 0)
 	_hurt_timer = HURT_FLASH_TIME
 	_visual.modulate = Color(1.0, 0.35, 0.35)
-	hp_changed.emit(hp, MAX_HP)
+	hp_changed.emit(hp, max_hp)
 	if hp == 0:
 		died.emit()  # 死亡重开流程归 L01-P0-08
 
@@ -63,6 +93,7 @@ func _attack() -> void:
 	attacked.emit(facing)
 	var arc: Area2D = MELEE_ARC_SCENE.instantiate()
 	arc.setup()  # 进树前构建扇形多边形（进树后赋值不生成物理形状）
+	arc.damage = attack_power()  # §4.1 攻击力随等级成长
 	get_parent().add_child(arc)
 	arc.global_position = global_position
 	arc.rotation = facing.angle()
