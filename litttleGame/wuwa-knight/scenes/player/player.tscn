@@ -17,6 +17,11 @@ shape = SubResource("RectangleShape2D_p1")
 color = Color(0.94902, 0.83529, 0.49412, 1)
 polygon = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
 
+[node name="AttackFlash" type="Polygon2D" parent="."]
+visible = false
+color = Color(1, 1, 1, 1)
+polygon = PackedVector2Array(8, -1.5, 28, -1.5, 28, 1.5, 8, 1.5)
+
 [node name="Camera2D" type="Camera2D" parent="."]
 zoom = Vector2(3, 3)
 limit_left = 0
