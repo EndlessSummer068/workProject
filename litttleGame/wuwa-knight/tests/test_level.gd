@@ -1,5 +1,5 @@
 extends SceneTree
-## L01-P0-07c 验收测试（BUILD_PLAN.md，范围=A1–A8+走廊+房门机制）：headless 运行。
+## L01-P0-07c/07d 验收测试（BUILD_PLAN.md，范围=A1–A8+走廊+房门机制+门常开）：headless 运行。
 ## 运行：Start-Process Godot --headless --path <项目> --script res://tests/test_level.gd
 
 var _fail := false
@@ -96,6 +96,10 @@ func _run() -> void:
 	await _push("move_right", 2 * 60)
 	var ok7c: bool = player.global_position.x >= 560.0  # 已穿门进入走廊（走廊 512..608）
 	_check("T7c a1e_passable", ok7c, "x=%.2f (期望 ≥560)" % player.global_position.x)
+	# T7d: 门首次开启后常开不回关（§2 房门规则，L01-P0-07d）：穿门走远（≥56px>32）仍开+无碰撞
+	var shape: CollisionShape2D = g_a1e.get_node("Body/Shape")
+	var ok7d: bool = g_a1e.open and shape.disabled
+	_check("T7d a1e_stays_open", ok7d, "open=%s no_collision=%s (期望 常开)" % [g_a1e.open, shape.disabled])
 
 	# T8: A2 北门锁定 → 靠近不开、碰撞阻挡（§2：清怪前四周门锁）
 	var g_a2n := _gate(level, "N|A2|A3")
