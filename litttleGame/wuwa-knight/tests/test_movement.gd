@@ -13,6 +13,7 @@ func _initialize() -> void:
 	_run.call_deferred()
 
 func _run() -> void:
+	LevelGenerator.section_override = "### 6.2"  # 本测试跑道坐标绑定 L01 布局（§6.2），覆写生成器小节（L02-P0-03）
 	var level: Node = (load("res://scenes/levels/level.tscn") as PackedScene).instantiate()
 	root.add_child(level)
 	await physics_frame

@@ -1,8 +1,8 @@
 class_name LevelGenerator
 extends Node2D
-## L01 关卡生成器（L01-P0-07/07b/07c/07e）：读取 docs/GAME.md §6.2 → TileMapLayer + 实体 + 房门。
-## 数值与布局唯一来源=GAME.md §6.2/§4.7/§7（TECH §8）。
-## 拓扑：8 区域 2D 格位（§6.2），区域间走廊直连（§4.7 宽4×长12），房门机制见 §2（07e 未清区域封禁）；死亡流程 §9（L01-P0-08）。
+## L01/L02 关卡生成器（L01-P0-07/07b/07c/07e；L02-P0-03 接入 §6.3）：读取 docs/GAME.md 布局小节 → TileMapLayer + 实体 + 房门。
+## 数值与布局唯一来源=GAME.md §6.3/§4.7/§7（TECH §8）；L01 布局=§6.2（DOC_SECTION 切换）。
+## 拓扑：8 区域 2D 格位（§6.3），区域间走廊直连（§4.7 宽4×长12），房门机制见 §2（07e 未清区域封禁）；死亡流程 §9（L01-P0-08）。
 
 const TILE := 16                       # §7 tile size 16px
 const ROOM_W := 32                     # §4.7 区域宽 32 tile
@@ -11,9 +11,14 @@ const PITCH_X := 44                    # §4.7 水平格距（32+12 走廊）
 const PITCH_Y := 32                    # §4.7 垂直格距（20+12）
 const CORRIDOR_LEN := 12               # §4.7 走廊长 12 tile（L01-P0-08 用户指令加长，提案值）
 const DOC_PATH := "res://docs/GAME.md"
+const DOC_SECTION := "### 6.3"         # 当前布局小节（L02-P0-03：L02 地图；L01 为 "### 6.2"）
+## 测试可覆写布局小节（""=用 DOC_SECTION）：L01 回归测试（test_level/camera/movement）设回 "### 6.2"，
+## 避免生成器切到 §6.3 后 L01 布局断言失效（L02-P0-03）。
+static var section_override := ""
 
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const E01_SCENE := preload("res://scenes/enemies/e01.tscn")
+const E02_SCENE := preload("res://scenes/enemies/e02.tscn")
 const DOOR_SCENE := preload("res://scenes/levels/door_gate.tscn")
 const DEATH_DIALOG := preload("res://scenes/ui/death_dialog.tscn")  # §8 死亡弹窗（L01-P0-08）
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")              # §8 HUD（L01-P1-02）
@@ -24,7 +29,7 @@ const DOOR_COLOR := Color("58c4dd")   # §7.2 门（开）——门格地板色�
 var player: CharacterBody2D = null
 var doors: Array[DoorGate] = []
 var _areas_cleared := {}      # area_id -> bool（§2：出生房/无敌人区域视为已清）
-var _area_enemies := {}       # area_id -> Array[EnemyE01]
+var _area_enemies := {}       # area_id -> Array[CharacterBody2D]（E01/E02，L02-P0-03 起混编）
 var _grid := {}               # Vector2i(col,row) -> area_id
 var _area_grid := {}          # area_id -> Vector2i(col,row)
 var _room_rects := {}                   # area_id -> Rect2（px，含墙，L01-P1-01 相机区域钳制）
@@ -82,13 +87,18 @@ func _ready() -> void:
 		push_error("[Level] 无法读取 %s（demo 仅支持编辑器运行）" % DOC_PATH)
 		return
 	var doc_text := doc.get_as_text()
+	var prefix := DOC_SECTION if section_override.is_empty() else section_override
+	var section := LevelParser.extract_section(doc_text, prefix)  # 当前小节（避免跨小节同名区域头抢先匹配）
+	if section.is_empty():
+		push_error("[Level] 文档未找到布局小节 %s" % prefix)
+		return
 	RenderingServer.set_default_clear_color(WALL_COLOR)  # 界外（未生成格）与墙同色，配合区域钳制视野无缝（L01-P1-01）
 	_tilemap.tile_set = _make_tileset()
 	add_child(_tilemap)
 	# 第一遍：解析全部区域（拓扑格位需全集，邻接查找才完整）
 	var parsed: Array = []  # [area_id, data, grid]
-	for area_id in ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"]:  # §6.2 拓扑表
-		var lines := LevelParser.extract_area(doc_text, area_id)
+	for area_id in ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"]:  # §6.3 拓扑表
+		var lines := LevelParser.extract_area(section, area_id)
 		var data := LevelParser.parse(lines)
 		if data["size"] == Vector2i.ZERO:
 			push_error("[Level] 区域 %s 解析失败（尺寸 0）" % area_id)
@@ -149,16 +159,8 @@ func _spawn_entities(area_id: String, data: Dictionary, origin: Vector2i) -> voi
 				player = PLAYER_SCENE.instantiate()
 				add_child(player)
 				player.global_position = pos
-			"E01":
-				var enemy: CharacterBody2D = E01_SCENE.instantiate()
-				add_child(enemy)
-				enemy.global_position = pos
-				if not _area_enemies.has(area_id):
-					_area_enemies[area_id] = []
-				_area_enemies[area_id].append(enemy)
-				enemy.died.connect(_on_area_enemy_died.bind(area_id))
-				if player != null:
-					enemy.died.connect(_on_enemy_mp_gain.bind(enemy))  # §4.1 击杀回蓝（经死亡信号驱动，TECH §12）
+			"E01", "E02":
+				_spawn_enemy(E01_SCENE if id == "E01" else E02_SCENE, area_id, pos)
 			"D":
 				door_cells.append(cell)
 			_:
@@ -168,6 +170,19 @@ func _spawn_entities(area_id: String, data: Dictionary, origin: Vector2i) -> voi
 		if data["cells"][cell] == "D":
 			door_cells.append(cell)
 	_build_doors(area_id, door_cells, origin)
+
+## 敌人生成+区域注册（§2 封禁/已清判定）+ 死亡接线（§4.1 击杀回蓝、区域清空）。
+## E01/E02 共用（L02-P0-03）；回蓝值由敌人 mp_gain 字段区分（均为小怪+3）。
+func _spawn_enemy(scene: PackedScene, area_id: String, pos: Vector2) -> void:
+	var enemy: CharacterBody2D = scene.instantiate()
+	add_child(enemy)
+	enemy.global_position = pos
+	if not _area_enemies.has(area_id):
+		_area_enemies[area_id] = []
+	_area_enemies[area_id].append(enemy)
+	enemy.died.connect(_on_area_enemy_died.bind(area_id))
+	if player != null:
+		enemy.died.connect(_on_enemy_mp_gain.bind(enemy))  # §4.1 击杀回蓝（经死亡信号驱动，TECH §12）
 
 # ---------- 房门（§2） ----------
 ## 门格按边缘分组（连续 4 格=一扇门），生成 DoorGate；方向决定邻接区域（edge key）。

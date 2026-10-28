@@ -1,7 +1,8 @@
 extends Area2D
 ## 大招 L 判定实体（L02-P0-07，§4.3「湮灭·终式」）：以使用者为圆心的 120°、半径 200 px 扇形瞬发直伤。
 ## 机制同技能 K（L01-P2-01）：_hit_bodies 黑名单保证同实例对同一目标只扣 1 次血；
-## 存活 LIFETIME 秒后自毁（< §4.3 冷却 30s）。视觉=金黄 #F2D57E 大扇形（借 §7.2 P01 主色调）。
+## 存活 LIFETIME 秒后自毁（< §4.3 冷却 30s）。视觉=紫 #9B59D0 大扇形（§4.3 用户指令 2026-10-28：
+## 与 K 金黄 #F2D57E 区分，借 §7.2 buff 特效紫；色值统一走 Balance.ULTIMATE_COLOR）。
 
 const ARC_RADIUS: float = Balance.ULTIMATE_ARC_RADIUS  # §4.3 半径 200 px
 const ARC_DEG: float = Balance.ULTIMATE_ARC_DEG        # §4.3 夹角 120°

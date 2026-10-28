@@ -109,11 +109,22 @@ func _run() -> void:
 	_check("T7 cooldown_reset_recast", ok7a and ok7b, "冷却归零信号=%s 图标就绪=%s；MP=%d(期望60-60=0) uses=%d" % [cooldowns.has(0.0), ok7a, player.mp, uses_arr.size()])
 
 	# T8: 冲击环 0.3s 消散自毁（T7 释放时生成的环）
+	_lprint("step: T8 begin")
 	var ring_before := _count_rings(player)
 	for i in 25:  # 25帧≈0.42s > 0.3s
 		await physics_frame
 	var ok8: bool = ring_before > 0 and _count_rings(player) == 0
 	_check("T8 ring_dissipates", ok8, "释放后环=%d → 0.42s后环=%d（期望 0，0.3s 消散）" % [ring_before, _count_rings(player)])
+
+	# T9: 大招特效色与 K 分离（§4.3 用户指令 2026-10-28：紫 #9B59D0 vs K 金黄 #F2D57E）
+	var arc_scene := load("res://scenes/bullets/ultimate_arc.tscn") as PackedScene
+	var ring_scene := load("res://scenes/bullets/ultimate_ring.tscn") as PackedScene
+	var arc_visual: Polygon2D = (arc_scene.instantiate() as Node2D).get_node("Visual")
+	var ring_line: Line2D = (ring_scene.instantiate() as Node2D).get_node("Ring")
+	var ok9: bool = not Balance.ULTIMATE_COLOR.is_equal_approx(Balance.SKILL_K_COLOR) \
+		and arc_visual.color.is_equal_approx(Color(Balance.ULTIMATE_COLOR, 0.6)) \
+		and ring_line.default_color.is_equal_approx(Balance.ULTIMATE_COLOR)
+	_check("T9 ultimate_color_distinct", ok9, "ULTIMATE_COLOR=%s K_COLOR=%s arc=%s ring=%s" % [Balance.ULTIMATE_COLOR, Balance.SKILL_K_COLOR, arc_visual.color, ring_line.default_color])
 
 	if _fail:
 		print("RESULT: FAILED")

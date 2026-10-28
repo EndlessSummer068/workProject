@@ -33,6 +33,7 @@ func _push(dir: String, frames: int) -> void:
 	Input.action_release(dir)
 
 func _run() -> void:
+	LevelGenerator.section_override = "### 6.2"  # 本测试绑定 L01 布局（§6.2 断言），覆写生成器小节（L02-P0-03）
 	var doc := FileAccess.open("res://docs/GAME.md", FileAccess.READ)
 	_check("T0 doc_readable", doc != null, "res://docs/GAME.md")
 	var doc_text: String = doc.get_as_text()
@@ -111,18 +112,19 @@ func _run() -> void:
 	var ok8b: bool = player.global_position.y >= 532.0  # 门体 512..528+半宽 → 被阻挡
 	_check("T8b a2n_blocks", ok8b, "y=%.2f (期望 ≥532 被阻挡)" % player.global_position.y)
 
-	# T9: 清空 A2（击杀其 2 只 E01）→ 区域已清 → 北门解锁 → 靠近自动开 → 穿门
+	# T9: 清空 A2（击杀其全部敌人）→ 区域已清 → 北门解锁 → 靠近自动开 → 穿门
+	# （L02-P0-01 起 E02 已实装：§6.2 战斗区敌人=E01×2+E02×2，清怪范围含 E02；验收语义不变=清空才解锁）
 	var a2_killed := 0
 	for c in level.get_children():
 		var s: Script = c.get_script() if c is Node2D else null
-		if s != null and str(s.resource_path).ends_with("e01.gd") and is_instance_valid(c) and c.hp > 0:
+		if s != null and (str(s.resource_path).ends_with("e01.gd") or str(s.resource_path).ends_with("e02.gd")) and is_instance_valid(c) and c.hp > 0:
 			var p: Vector2 = c.global_position
 			if p.x >= 704.0 and p.x <= 1216.0 and p.y >= 512.0 and p.y <= 832.0:  # A2 范围（origin 704,512）
 				c.take_damage(999)
 				a2_killed += 1
 	await physics_frame
 	await physics_frame
-	var ok9a: bool = a2_killed == 2 and g_a2n.unlocked \
+	var ok9a: bool = a2_killed == 4 and g_a2n.unlocked \
 		and _gate(level, "E|A2|A5").unlocked and _gate(level, "W|A5|A2").unlocked  # 自身侧门解锁+W|A5|A2 区域外可进入（§2 L01-P0-07e）
 	_check("T9a a2_clear_unlock", ok9a, "killed=%d a2n=%s a2e=%s a5w=%s" % [a2_killed, g_a2n.unlocked, _gate(level, "E|A2|A5").unlocked, _gate(level, "W|A5|A2").unlocked])
 	player.global_position = Vector2(960, 546)

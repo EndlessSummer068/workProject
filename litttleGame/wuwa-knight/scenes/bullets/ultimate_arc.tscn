@@ -10,4 +10,4 @@ script = ExtResource("1_u")
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
 
 [node name="Visual" type="Polygon2D" parent="."]
-color = Color(0.94902, 0.83529, 0.49412, 0.6)
+color = Color(0.607843, 0.34902, 0.815686, 0.6)

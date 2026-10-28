@@ -28,6 +28,7 @@ func _settle(player: CharacterBody2D, cam: Camera2D, pos: Vector2) -> Vector2:
 	return cam.get_screen_center_position()
 
 func _run() -> void:
+	LevelGenerator.section_override = "### 6.2"  # 本测试绑定 L01 布局（§6.2 A1/A2 矩形断言），覆写生成器小节（L02-P0-03）
 	var level: Node = (load("res://scenes/levels/level.tscn") as PackedScene).instantiate()
 	root.add_child(level)
 	for i in 10:  # 预热：headless 下相机滚动更新需数帧后才就绪，此前 reset_smoothing 无效

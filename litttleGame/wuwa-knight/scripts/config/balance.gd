@@ -32,6 +32,7 @@ const ULTIMATE_COOLDOWN: float = 30.0          # §4.3 L 冷却 30s（提案）
 const ULTIMATE_ARC_DEG: float = 120.0          # §4.3 L 扇形夹角 120°
 const ULTIMATE_ARC_RADIUS: float = 200.0       # §4.3 L 扇形半径 200 px
 const ULTIMATE_DAMAGE_MULT: float = 5.0        # §4.3 L 5×攻击力
+const ULTIMATE_COLOR := Color("9b59d0")        # §4.3 L 大招特效紫（用户指令 2026-10-28：与 K 金黄区分，借 §7.2 buff 紫）
 const ULTIMATE_RING_TIME: float = 0.3          # §4.3 冲击环约 0.3 s 消散（用户指令 2026-10-28）
 const PLAYER_DEFENSE := 0                      # §4.1 防御力初值 0（用户指令 2026-10-28；L02 阶段恒为初值，无获取渠道）
 const DEFENSE_MIN_DAMAGE := 1                  # §4.1 减伤公式保底 1 点（用户指令 2026-10-28）

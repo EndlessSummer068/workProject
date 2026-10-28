@@ -8,6 +8,6 @@ script = ExtResource("1_ur")
 
 [node name="Ring" type="Line2D" parent="."]
 width = 8.0
-default_color = Color(0.94902, 0.83529, 0.49412, 1)
+default_color = Color(0.607843, 0.34902, 0.815686, 1)
 joint_mode = 2
 closed = true

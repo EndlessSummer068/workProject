@@ -1,11 +1,28 @@
 class_name LevelParser
 extends RefCounted
-## L01 ASCII 布局解析器（L01-P0-07，GAME.md §6.2）。
-## 文本来源唯一：docs/GAME.md §6.2（运行时读取，demo 阶段仅编辑器运行，见交付说明）。
-## 图例（§6.2）：#=墙、.=地板、P=玩家出生、E01…=敌人、B01…=Boss、R01…=奖励、D=门、S=商店、?=待定。
-## 每格=3 字符（编号占 3 字符宽，§6.2）。
+## ASCII 布局解析器（L01-P0-07；L02-P0-03 起支持多小节）。
+## 文本来源唯一：docs/GAME.md §6.2（L01）/§6.3（L02）运行时读取（demo 阶段仅编辑器运行）。
+## 图例（§6.2/§6.3）：#=墙、.=地板、P=玩家出生、E01…=敌人、B01…=Boss、R01…=奖励、D=门、S=商店、T=传送点、?=待定。
+## 每格=3 字符（编号占 3 字符宽）。
 
 const CELL_CHARS := 3
+
+## 截取文档中某小节（如 "### 6.3"）到下一同级标题（"## "，不含 "###"）之间的文本。
+## 用途：§6.2 与 §6.3 都有 "#### A1（" 区域头，按小节截取避免跨小节抢先匹配（L02-P0-03）。
+static func extract_section(doc_text: String, section_prefix: String) -> String:
+	doc_text = doc_text.replace("\r\n", "\n")
+	var lines := doc_text.split("\n")
+	var start := -1
+	for i in lines.size():
+		if lines[i].begins_with(section_prefix):
+			start = i
+			break
+	if start < 0:
+		return ""
+	for j in range(start + 1, lines.size()):
+		if lines[j].begins_with("## "):  # "### " 第 3 字符非空格，不会误判
+			return "\n".join(lines.slice(start, j))
+	return "\n".join(lines.slice(start))
 
 ## 从 GAME.md 全文中提取某区域（如 "A1"）的文本行（``` 围栏内）。
 ## 状态机：0=未找到区域头 → 1=已找到头、等待开场围栏 → 2=收集中、遇结束围栏返回。
