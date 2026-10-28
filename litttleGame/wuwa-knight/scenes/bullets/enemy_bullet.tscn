@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/bullets/enemy_bullet.gd" id="1_eb"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_eb"]
+radius = 3.0
+
+[node name="EnemyBullet" type="Area2D"]
+z_index = 2
+collision_layer = 8
+collision_mask = 3
+script = ExtResource("1_eb")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_eb")
+
+[node name="Visual" type="Polygon2D" parent="."]
+color = Color(0.752941, 0.223529, 0.168627, 1)
+polygon = PackedVector2Array(-3, -3, 3, -3, 3, 3, -3, 3)

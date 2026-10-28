@@ -1,0 +1,28 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemies/e02.gd" id="1_e"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_e2"]
+size = Vector2(12, 12)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_detect"]
+radius = 160.0
+
+[node name="E02" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 1
+script = ExtResource("1_e")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_e2")
+
+[node name="Visual" type="Polygon2D" parent="."]
+color = Color(0.478431, 0.54902, 0.431373, 1)
+polygon = PackedVector2Array(0, -8, 8, 0, 0, 8, -8, 0)
+
+[node name="DetectArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="Shape" type="CollisionShape2D" parent="DetectArea"]
+shape = SubResource("CircleShape2D_detect")
