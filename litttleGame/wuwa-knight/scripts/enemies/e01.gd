@@ -17,6 +17,7 @@ const MAX_HP := Balance.E01_MAX_HP                      # §4.4 E01 HP 8
 const R01_SCENE := preload("res://scenes/rewards/r01.tscn")  # §4.5 掉落 R01
 
 var hp: int = MAX_HP
+var mp_gain: int = Balance.MP_GAIN_SMALL  # §4.1 击杀回蓝 小怪+3（LevelGenerator 接线读取）
 var _state: State = State.IDLE
 var _tick: float = 0.0
 var _target: Node2D = null

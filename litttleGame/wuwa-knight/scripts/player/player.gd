@@ -8,6 +8,7 @@ signal attacked(facing: Vector2)
 signal skill_used(facing: Vector2)
 signal skill_cooldown_changed(remaining: float)
 signal hp_changed(current: int, max_hp: int)
+signal mp_changed(current: int, max_mp: int)
 signal exp_changed(current: int, need: int)
 signal leveled_up(level: int)
 signal coins_changed(total: int)
@@ -24,6 +25,8 @@ const LEVELUP_HP_BONUS := Balance.LEVELUP_HP_BONUS          # §4.1 升级成长
 const LEVELUP_ATTACK_BONUS: float = Balance.LEVELUP_ATTACK_BONUS  # §4.1 升级成长 攻击+10%/级
 const LEVELUP_BASE_EXP := Balance.LEVELUP_BASE_EXP          # §4.5 LV2 需 20（提案）
 const LEVELUP_EXP_STEP := Balance.LEVELUP_EXP_STEP          # §4.5 每级+10（提案）
+const MP_REGEN: float = Balance.PLAYER_MP_REGEN             # §4.1 MP 自然恢复 1/s（用户指令 2026-10-28）
+const DEFENSE_MIN_DAMAGE := Balance.DEFENSE_MIN_DAMAGE      # §4.1 减伤公式保底 1 点（用户指令 2026-10-28）
 const HURT_FLASH_TIME: float = 0.15  # 受击反馈闪烁时长（占位表现，非 §4 字段）
 const FACING_DEFAULT := Vector2.RIGHT  # 初始朝向（提案：§2 朝向=最后移动方向）
 const MELEE_ARC_SCENE := preload("res://scenes/bullets/melee_arc.tscn")  # §4.2 W01 扇形判定
@@ -32,6 +35,9 @@ const SKILL_ARC_SCENE := preload("res://scenes/bullets/skill_arc.tscn")  # §4.3
 var facing: Vector2 = FACING_DEFAULT
 var max_hp: int = Balance.PLAYER_MAX_HP  # §4.1 玩家 HP 6
 var hp: int = max_hp
+var max_mp: int = Balance.PLAYER_MP_MAX  # §4.1 MP 上限 100 初始满（用户指令 2026-10-28）
+var mp: int = max_mp
+var defense: int = Balance.PLAYER_DEFENSE  # §4.1 防御力初值（§4.1：L02 阶段恒为初值，无获取渠道）
 var level := 1
 var exp_current := 0
 var exp_next := LEVELUP_BASE_EXP
@@ -41,6 +47,7 @@ var _attack_timer: float = 0.0
 var _skill_timer: float = 0.0
 var _skill_cooling := false
 var _hurt_timer: float = 0.0
+var _mp_regen_acc: float = 0.0  # MP 自然恢复小数累积（§4.1 1/s，不足 1 点部分滚存）
 
 @onready var _visual: Polygon2D = $Visual
 
@@ -72,14 +79,26 @@ func gain_reward(exp_gain: int, coin_gain: int) -> void:
 	exp_changed.emit(exp_current, exp_next)
 	print("[Player] Lv=%d HP=%d/%d ATK=%d EXP=%d/%d 金币=%d" % [level, hp, max_hp, attack_power(), exp_current, exp_next, coins])
 
+## 击杀回蓝（§4.1：小怪+3/精英+6/Boss·小 Boss+15，用户指令 2026-10-28）；
+## 经敌人死亡信号驱动（TECH §12 mp_changed），由 LevelGenerator 接线调用。
+func gain_mp(amount: int) -> void:
+	if mp >= max_mp:
+		return
+	mp = mini(mp + amount, max_mp)
+	mp_changed.emit(mp, max_mp)
+	print("[Player] 击杀回蓝 +%d → MP=%d/%d" % [amount, mp, max_mp])
+
 ## 受击（§4.1：无敌帧已移除，伤害结算间隔由伤害来源自行控制）。
+## 减伤公式（§4.1，用户指令 2026-10-28）：实际伤害 = max(1, 原伤害 − 防御力)，保底 1 点。
 func take_damage(amount: int) -> void:
 	if hp <= 0:
 		return
-	hp = maxi(hp - amount, 0)
+	var actual: int = maxi(amount - defense, DEFENSE_MIN_DAMAGE)
+	hp = maxi(hp - actual, 0)
 	_hurt_timer = HURT_FLASH_TIME
 	_visual.modulate = Color(1.0, 0.35, 0.35)
 	hp_changed.emit(hp, max_hp)
+	print("[Player] 受击 原始=%d 防御=%d 实际=%d → HP=%d/%d" % [amount, defense, actual, hp, max_hp])
 	if hp == 0:
 		died.emit()  # 死亡重开流程归 L01-P0-08
 
@@ -100,6 +119,13 @@ func _physics_process(delta: float) -> void:
 		_attack()
 	if Input.is_action_just_pressed("skill"):
 		_use_skill()
+	if mp < max_mp:  # §4.1 MP 自然恢复 1/s（用户指令 2026-10-28）
+		_mp_regen_acc += MP_REGEN * delta
+		if _mp_regen_acc >= 1.0:
+			var gain := int(_mp_regen_acc)
+			_mp_regen_acc -= float(gain)
+			mp = mini(mp + gain, max_mp)
+			mp_changed.emit(mp, max_mp)
 	move_and_slide()
 	var next := State.MOVE if input_dir != Vector2.ZERO else State.IDLE
 	if next != _state:

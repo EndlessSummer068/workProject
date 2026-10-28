@@ -6,13 +6,45 @@
 layer = 1
 script = ExtResource("1_hud")
 
-[node name="HPLabel" type="Label" parent="."]
+[node name="LvLabel" type="RichTextLabel" parent="."]
 offset_left = 8.0
 offset_top = 8.0
 offset_right = 288.0
-offset_bottom = 32.0
-theme_override_font_sizes/font_size = 16
-text = "HP 6/6  Lv 1"
+offset_bottom = 28.0
+bbcode_enabled = true
+scroll_active = false
+theme_override_font_sizes/normal_font_size = 16
+text = "Lv 1"
+
+[node name="HPLabel" type="RichTextLabel" parent="."]
+offset_left = 8.0
+offset_top = 28.0
+offset_right = 288.0
+offset_bottom = 48.0
+bbcode_enabled = true
+scroll_active = false
+theme_override_font_sizes/normal_font_size = 16
+text = "HP [color=#c0392b]6/6[/color]"
+
+[node name="DefLabel" type="RichTextLabel" parent="."]
+offset_left = 8.0
+offset_top = 48.0
+offset_right = 288.0
+offset_bottom = 68.0
+bbcode_enabled = true
+scroll_active = false
+theme_override_font_sizes/normal_font_size = 16
+text = "防御 0"
+
+[node name="MPLabel" type="RichTextLabel" parent="."]
+offset_left = 8.0
+offset_top = 68.0
+offset_right = 288.0
+offset_bottom = 88.0
+bbcode_enabled = true
+scroll_active = false
+theme_override_font_sizes/normal_font_size = 16
+text = "MP [color=#58c4dd]100/100[/color]"
 
 [node name="CoinsLabel" type="Label" parent="."]
 anchors_preset = 1

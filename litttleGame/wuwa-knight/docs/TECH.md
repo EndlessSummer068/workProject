@@ -29,7 +29,7 @@
 res://
 ├── scenes/
 │   ├── player/        # P01/P02 玩家场景
-│   ├── enemies/       # E01–E05、B01 场景
+│   ├── enemies/       # E01–E05、B01/B02 场景
 │   ├── bullets/       # 子弹场景（近战判定区也在此）
 │   ├── rewards/       # R01 等掉落奖励场景（L01-P0-06 新增）
 │   ├── levels/        # level.tscn 主关卡
@@ -55,7 +55,7 @@ res://
 | 场景 | 根节点类型 | 说明 |
 |---|---|---|
 | Player | CharacterBody2D | P01/P02 共用脚本参数不同；实体编号见 GAME.md §5 |
-| Enemy | CharacterBody2D | E01–E05 与 B01 共用框架，行为差异用导出参数/子状态机 |
+| Enemy | CharacterBody2D | E01–E05 与 B01/B02 共用框架，行为差异用导出参数/子状态机 |
 | Bullet | Area2D | 双方子弹共用，`is_player_bullet` 区分 |
 | Chest / Door / ShopPoint | Area2D | 奖励与交互实体（编号见 §5） |
 | Level | Node2D | 关卡根；下挂 TileMap 区域、实体、BulletPool（见 §13） |
@@ -69,10 +69,11 @@ res://
 |---|---|---|
 | `move_up` / `move_down` / `move_left` / `move_right` | W / S / A / D | GAME.md §3 移动 |
 | `attack` | J | §3 普攻 |
-| `skill` | K | §3 技能（二期） |
-| `ultimate` | L | §3 大招（二期） |
+| `skill` | K | §3 技能（L01-P2-01 已实装） |
+| `ultimate` | L | §3 大招（L02-P0-07 实装：需冷却完毕且 MP≥60） |
 | `use_item` | H | §3 回复道具 |
-| `interact` | E | §3 商店交互（提案值，GAME.md 标待定） |
+| `interact` | E | §3 商店/宝箱交互 |
+| `choice_1` / `choice_2` / `choice_3` | 1 / 2 / 3 | §4.5 宝箱 3 选 1 面板选择；放弃走内建 `ui_cancel`（Esc） |
 | `debug_god` / `debug_skip` / `debug_collision` | F1 / F2 / F3 | 见本文 §14 |
 
 - 代码中一律用动作名字符串常量（`Input.is_action_pressed("attack")`），禁止裸键码。
@@ -124,12 +125,13 @@ const GOLD_SMALL := 2                 # §4.5 金币：小怪
 ## 11. 状态机约定
 
 - 玩家：`enum State { IDLE, MOVE }`（按需扩展）；K 技能（L01-P2-01）=瞬发直伤：经信号 `skill_used` / `skill_cooldown_changed` 驱动 + 瞬时扇形判定实体实装，不占用持续状态；ATTACK/ULTIMATE/HURT/DEAD 等状态随 L 大招等二期扩展。
-- 敌人：`enum State { IDLE, CHASE, ATTACK, HURT, DEAD }`，E03 自爆虫追加 `SELF_DESTRUCT`；B01 用 `enum State { PHASE1, PHASE2, PHASE3 }`（阶段定义见 GAME.md §4.4）。
+- 敌人：`enum State { IDLE, CHASE, ATTACK, HURT, DEAD }`，E03 自爆虫追加 `SELF_DESTRUCT`；B01 用 `enum State { PHASE1, PHASE2, PHASE3 }`（阶段定义见 GAME.md §4.4）；B02 用 `enum State { PHASE1, PHASE2 }`（GAME.md §4.4 B02，L02 小 Boss）。
 - 每个状态机必须发统一信号：`signal state_changed(from: State, to: State)`；禁止跨节点直接改别人状态，只经信号/方法。
 
 ## 12. 信号与分组
 
 - 信号命名：过去式 `snake_case`，不加 `on_` 前缀——`hp_changed(value)`、`died`、`area_cleared`、`chest_opened`、`level_completed`、`state_changed(from, to)`。
+- MP 与大招（GAME.md §4.1/§4.3，L02 新增）：`mp_changed(value)`、`ultimate_used`、`ultimate_cooldown_changed(remaining)`（命名对齐 K 技能的 `skill_used` / `skill_cooldown_changed`）。
 - 分组（group，字符串常量集中在 balance.gd 或 `groups.gd`）：`player`、`enemies`、`boss`、`bullets`、`pickups`、`walls`。
 - 实体 `_ready()` 中自行 `add_to_group()`；跨实体查询只走分组（`get_tree().get_nodes_in_group(...)`），禁止 `get_node("../..")` 长路径。
 

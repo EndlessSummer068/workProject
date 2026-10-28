@@ -157,6 +157,8 @@ func _spawn_entities(area_id: String, data: Dictionary, origin: Vector2i) -> voi
 					_area_enemies[area_id] = []
 				_area_enemies[area_id].append(enemy)
 				enemy.died.connect(_on_area_enemy_died.bind(area_id))
+				if player != null:
+					enemy.died.connect(_on_enemy_mp_gain.bind(enemy))  # §4.1 击杀回蓝（经死亡信号驱动，TECH §12）
 			"D":
 				door_cells.append(cell)
 			_:
@@ -220,6 +222,12 @@ func _flush_gate(area_id: String, edge: String, run: Array[Vector2i], origin: Ve
 
 func _edge_key(a: String, b: String) -> String:
 	return "%s-%s" % [mini(a.hash(), b.hash()), maxi(a.hash(), b.hash())]
+
+## 击杀回蓝（§4.1，用户指令 2026-10-28）：敌人死亡信号 → 玩家 MP 增加；
+## 回蓝值由敌人自身 mp_gain 字段决定（E01=小怪+3；精英/Boss 随 L02-P0-04/05 接入）。
+func _on_enemy_mp_gain(enemy: CharacterBody2D) -> void:
+	if player != null and player.has_method("gain_mp"):
+		player.gain_mp(enemy.mp_gain)
 
 ## 区域敌人全灭 → 区域已清（§2）→ 仅解锁门所在区域一侧的门（L01-P0-07e：邻区已清不连带解锁）。
 func _on_area_enemy_died(area_id: String) -> void:
