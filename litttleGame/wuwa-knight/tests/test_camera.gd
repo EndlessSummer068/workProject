@@ -1,5 +1,6 @@
 extends SceneTree
-## L01-P1-01 验收测试（BUILD_PLAN.md）：相机跟随居中 + 区域边界钳制 + zoom=3 可视 24×13.5 tile。headless 运行。
+## L01-P1-01/01b 验收测试（BUILD_PLAN.md）：相机跟随居中 + 区域边界钳制 + zoom=3 可视 24×13.5 tile
+## + 门旁放宽纯跟随（01b 用户指令：过门不突跳）。headless 运行。
 ## 规则=GAME.md §8 提案（待定项按提案实现）；zoom/分辨率=§7。
 ## 运行：Start-Process Godot --headless --path <项目> --script res://tests/test_camera.gd
 
@@ -70,14 +71,20 @@ func _run() -> void:
 		and c5.x - HALF_VIEW.x >= union.position.x - 0.01 and c5.x + HALF_VIEW.x <= union.end.x + 0.01,
 		"center=%s view_x=[%.0f,%.0f] ⊆ 并集 [%d,%d]" % [c5, c5.x - HALF_VIEW.x, c5.x + HALF_VIEW.x, int(union.position.x), int(union.end.x)])
 
-	# TC6: 进入 A2 → 钳制切换为 A2 矩形：中心 x=896、视野左缘=A2 左缘 704
-	var c6 := await _settle(player, cam, Vector2(730, 672))
-	_check("TC6 clamp_a2", absf(c6.x - (A2.position.x + HALF_VIEW.x)) < 0.5 and absf(c6.y - player.global_position.y) < 0.5,
-		"center=%s view_left=%.1f（期望中心 x=896、视野左缘=704）" % [c6, c6.x - HALF_VIEW.x])
+	# TC6: 进入 A2（距门 ≥8 tile）→ 钳制切换为 A2 矩形：中心=(896,620)、视野左缘=A2 左缘 704
+	var c6 := await _settle(player, cam, Vector2(730, 534))
+	var expected6 := Vector2(A2.position.x + HALF_VIEW.x, A2.position.y + HALF_VIEW.y)
+	_check("TC6 clamp_a2", c6.distance_to(expected6) < 0.5,
+		"center=%s expected=%s（期望中心 (896,620)、视野左缘=704）" % [c6, expected6])
 
 	# TC7: 回归：整图 Limits 兜底保持（test_level.gd T4 依据，§6.2 校验 208×52 tile）
 	_check("TC7 map_limits", cam.limit_left == 0 and cam.limit_top == 0 and cam.limit_right == 3328 and cam.limit_bottom == 832,
 		"limits=(%d,%d,%d,%d)" % [cam.limit_left, cam.limit_top, cam.limit_right, cam.limit_bottom])
+
+	# TC8: 门旁跟随（L01-P1-01b，§8 提案）：距门 ≤4 tile → 纯跟随主角不钳制（无过门视野突跳）
+	var c8 := await _settle(player, cam, Vector2(730, 672))  # 距 A2 西门 (712,672) 18px ≤64
+	_check("TC8 door_follow", c8.distance_to(player.global_position) < 0.5,
+		"center=%s player=%s（期望重合=纯跟随）" % [c8, player.global_position])
 
 	if _fail:
 		print("RESULT: FAILED")

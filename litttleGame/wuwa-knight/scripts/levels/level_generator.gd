@@ -263,7 +263,10 @@ func _setup_camera(size: Vector2i) -> void:
 	cam.limit_top = 0
 	cam.limit_right = size.x * TILE
 	cam.limit_bottom = size.y * TILE
-	cam.setup(_room_rects, _corridor_rects)  # 区域钳制（L01-P1-01，§8 提案）
+	var gate_positions := PackedVector2Array()
+	for gate in doors:
+		gate_positions.append(gate.global_position)
+	cam.setup(_room_rects, _corridor_rects, gate_positions)  # 区域钳制+门旁放宽（L01-P1-01/01b，§8 提案）
 
 ## 玩家 HP 归 0 → 死亡弹窗（§8/§9，L01-P0-08）。
 func _on_player_died() -> void:
