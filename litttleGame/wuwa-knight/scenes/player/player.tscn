@@ -1,6 +1,7 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="1_p"]
+[ext_resource type="Script" path="res://scripts/levels/camera_clamp.gd" id="2_c"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_p1"]
 size = Vector2(12, 12)
@@ -18,6 +19,7 @@ color = Color(0.94902, 0.83529, 0.49412, 1)
 polygon = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
 
 [node name="Camera2D" type="Camera2D" parent="."]
+script = ExtResource("2_c")
 zoom = Vector2(3, 3)
 limit_left = 0
 limit_top = 0

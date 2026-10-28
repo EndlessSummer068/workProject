@@ -26,6 +26,8 @@ var _areas_cleared := {}      # area_id -> bool（§2：出生房/无敌人区�
 var _area_enemies := {}       # area_id -> Array[EnemyE01]
 var _grid := {}               # Vector2i(col,row) -> area_id
 var _area_grid := {}          # area_id -> Vector2i(col,row)
+var _room_rects := {}                   # area_id -> Rect2（px，含墙，L01-P1-01 相机区域钳制）
+var _corridor_rects: Array[Dictionary] = []  # {"rect","a","b"}：走廊矩形+两端区域（钳制=两端房间并集）
 
 @onready var _tilemap := TileMapLayer.new()
 
@@ -35,6 +37,7 @@ func _ready() -> void:
 		push_error("[Level] 无法读取 %s（demo 仅支持编辑器运行）" % DOC_PATH)
 		return
 	var doc_text := doc.get_as_text()
+	RenderingServer.set_default_clear_color(WALL_COLOR)  # 界外（未生成格）与墙同色，配合区域钳制视野无缝（L01-P1-01）
 	_tilemap.tile_set = _make_tileset()
 	add_child(_tilemap)
 	# 第一遍：解析全部区域（拓扑格位需全集，邻接查找才完整）
@@ -57,6 +60,7 @@ func _ready() -> void:
 		var data: Dictionary = entry[1]
 		var grid: Vector2i = entry[2]
 		var origin := Vector2i(grid.x * PITCH_X, grid.y * PITCH_Y)  # §4.7 格距
+		_room_rects[area_id] = Rect2(Vector2(origin) * TILE, Vector2(ROOM_W, ROOM_H) * TILE)  # L01-P1-01 钳制数据
 		_build_tiles(data, origin)
 		_spawn_entities(area_id, data, origin)
 		x_extent = maxi(x_extent, origin.x + ROOM_W)
@@ -193,9 +197,11 @@ func _build_corridors() -> void:
 		if _grid.has(grid + Vector2i.RIGHT):  # 东向走廊：地板行 8..11（4 行）+ 上下墙
 			var origin := Vector2i(grid.x * PITCH_X + ROOM_W, grid.y * PITCH_Y + ROOM_H / 2 - 3)
 			_fill_corridor(origin, Vector2i(0, 1), Vector2i(CORRIDOR_LEN, 6), Vector2i(CORRIDOR_LEN, 4))
+			_corridor_rects.append({"rect": Rect2(Vector2(origin) * TILE, Vector2(CORRIDOR_LEN, 6) * TILE), "a": _grid[grid], "b": _grid[grid + Vector2i.RIGHT]})
 		if _grid.has(grid + Vector2i.DOWN):  # 南向走廊：地板列 14..17（4 列）+ 左右墙
 			var origin2 := Vector2i(grid.x * PITCH_X + ROOM_W / 2 - 3, grid.y * PITCH_Y + ROOM_H)
 			_fill_corridor(origin2, Vector2i(1, 0), Vector2i(6, CORRIDOR_LEN), Vector2i(4, CORRIDOR_LEN))
+			_corridor_rects.append({"rect": Rect2(Vector2(origin2) * TILE, Vector2(6, CORRIDOR_LEN) * TILE), "a": _grid[grid], "b": _grid[grid + Vector2i.DOWN]})
 
 ## 走廊填充：外圈墙矩形 + 内部地板矩形（floor_off 为地板相对外圈的偏移）。
 func _fill_corridor(origin: Vector2i, floor_off: Vector2i, outer: Vector2i, floor_size: Vector2i) -> void:
@@ -210,11 +216,12 @@ func _fill_corridor(origin: Vector2i, floor_off: Vector2i, outer: Vector2i, floo
 func _setup_camera(size: Vector2i) -> void:
 	if player == null:
 		return
-	var cam: Camera2D = player.get_node("Camera2D")
+	var cam: CameraClamp = player.get_node("Camera2D")
 	cam.limit_left = 0
 	cam.limit_top = 0
 	cam.limit_right = size.x * TILE
 	cam.limit_bottom = size.y * TILE
+	cam.setup(_room_rects, _corridor_rects)  # 区域钳制（L01-P1-01，§8 提案）
 
 ## 玩家 HP 归 0 → 死亡弹窗（§8/§9，L01-P0-08）。
 func _on_player_died() -> void:
