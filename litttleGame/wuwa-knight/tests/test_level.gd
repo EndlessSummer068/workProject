@@ -1,5 +1,5 @@
 extends SceneTree
-## L01-P0-07c/07d/08 验收测试（BUILD_PLAN.md）：A1–A8+走廊+房门机制+门常开+死亡流程。headless 运行。
+## L01-P0-07c/07d/07e/08 验收测试（BUILD_PLAN.md）：A1–A8+走廊+房门机制+门常开+未清区域封禁+死亡流程。headless 运行。
 ## 运行：Start-Process Godot --headless --path <项目> --script res://tests/test_level.gd
 
 var _fail := false
@@ -123,7 +123,7 @@ func _run() -> void:
 	await physics_frame
 	await physics_frame
 	var ok9a: bool = a2_killed == 2 and g_a2n.unlocked \
-		and _gate(level, "E|A2|A5").unlocked and _gate(level, "W|A5|A2").unlocked  # 已清区域两端门均解锁（§2）
+		and _gate(level, "E|A2|A5").unlocked and _gate(level, "W|A5|A2").unlocked  # 自身侧门解锁+W|A5|A2 区域外可进入（§2 L01-P0-07e）
 	_check("T9a a2_clear_unlock", ok9a, "killed=%d a2n=%s a2e=%s a5w=%s" % [a2_killed, g_a2n.unlocked, _gate(level, "E|A2|A5").unlocked, _gate(level, "W|A5|A2").unlocked])
 	player.global_position = Vector2(960, 546)
 	player.velocity = Vector2.ZERO
@@ -134,6 +134,33 @@ func _run() -> void:
 	await _push("move_up", 2 * 60)
 	var ok9c: bool = player.global_position.y <= 480.0  # 已穿门进入北走廊（走廊 y 320..512）
 	_check("T9c a2n_passable", ok9c, "y=%.2f (期望 ≤480)" % player.global_position.y)
+
+	# T11: 未清区域封禁（§2 L01-P0-07e 用户指令）：区域内除入口门外重新锁定，走出恢复，重进可换入口
+	var g_a5w := _gate(level, "W|A5|A2")   # A5 西门 (1416,672)
+	var g_a5n := _gate(level, "N|A5|A4")   # A5 北门 (1664,520)
+	var g_a5e := _gate(level, "E|A5|A6")   # A5 东门 (1912,672)
+	player.global_position = Vector2(1664, 672)  # 直接传送进未清 A5（矩形 1408..1920 × 512..832）
+	player.velocity = Vector2.ZERO
+	await physics_frame
+	await physics_frame
+	# T11a: 入口门=最近门（北门 d=152）→ 其余门重新锁定
+	var ok11a: bool = not g_a5w.unlocked and not g_a5e.unlocked and g_a5n.unlocked
+	_check("T11a a5_seal", ok11a, "a5w=%s a5n=%s a5e=%s (期望 w锁 n=入口 e锁)" % [g_a5w.unlocked, g_a5n.unlocked, g_a5e.unlocked])
+	await _push("move_left", 2 * 60)  # 朝西门走 2s（约 280px）→ 被锁定门阻挡
+	var ok11b: bool = player.global_position.x >= 1424.0  # 门体 1408..1424 东缘 → 未穿出
+	_check("T11b a5w_blocks", ok11b, "x=%.2f (期望 ≥1424 被阻挡)" % player.global_position.x)
+	player.global_position = Vector2(960, 672)  # 走出 A5 → A2（已清）
+	player.velocity = Vector2.ZERO
+	await physics_frame
+	await physics_frame
+	var ok11c: bool = g_a5w.unlocked and g_a5e.unlocked  # 区域外恢复可通行（进入态）
+	_check("T11c a5_exit_release", ok11c, "a5w=%s a5e=%s (期望 均解锁)" % [g_a5w.unlocked, g_a5e.unlocked])
+	player.global_position = Vector2(1430, 672)  # 重进 A5（西门旁）→ 入口门=西门
+	player.velocity = Vector2.ZERO
+	await physics_frame
+	await physics_frame
+	var ok11d: bool = g_a5w.unlocked and not g_a5n.unlocked  # 入口换为西门，北门重新锁定
+	_check("T11d a5_reentry_entry_swap", ok11d, "a5w=%s a5n=%s (期望 w=入口 n重锁)" % [g_a5w.unlocked, g_a5n.unlocked])
 
 	# T10: 死亡弹窗与重开（§8/§9，L01-P0-08）
 	player.take_damage(999)  # HP 归 0 → died 信号 → 弹窗（惰性实例化）+暂停

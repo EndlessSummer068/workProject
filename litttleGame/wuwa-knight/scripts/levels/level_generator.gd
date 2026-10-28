@@ -1,8 +1,8 @@
 class_name LevelGenerator
 extends Node2D
-## L01 关卡生成器（L01-P0-07/07b/07c）：读取 docs/GAME.md §6.2 → TileMapLayer + 实体 + 房门。
+## L01 关卡生成器（L01-P0-07/07b/07c/07e）：读取 docs/GAME.md §6.2 → TileMapLayer + 实体 + 房门。
 ## 数值与布局唯一来源=GAME.md §6.2/§4.7/§7（TECH §8）。
-## 拓扑：8 区域 2D 格位（§6.2），区域间走廊直连（§4.7 宽4×长12），房门机制见 §2；死亡流程 §9（L01-P0-08）。
+## 拓扑：8 区域 2D 格位（§6.2），区域间走廊直连（§4.7 宽4×长12），房门机制见 §2（07e 未清区域封禁）；死亡流程 §9（L01-P0-08）。
 
 const TILE := 16                       # §7 tile size 16px
 const ROOM_W := 32                     # §4.7 区域宽 32 tile
@@ -28,8 +28,52 @@ var _grid := {}               # Vector2i(col,row) -> area_id
 var _area_grid := {}          # area_id -> Vector2i(col,row)
 var _room_rects := {}                   # area_id -> Rect2（px，含墙，L01-P1-01 相机区域钳制）
 var _corridor_rects: Array[Dictionary] = []  # {"rect","a","b"}：走廊矩形+两端区域（钳制=两端房间并集）
+var _entry_gates := {}        # 未清区域 -> 入口门（玩家进入时所过的门，L01-P0-07e §2）
+var _player_area := ""        # 玩家当前所在区域 id（""=走廊/界外，L01-P0-07e）
 
 @onready var _tilemap := TileMapLayer.new()
+
+func _physics_process(_delta: float) -> void:
+	## 房门动态刷新（L01-P0-07e，§2）：进出区域时重算各门锁定态
+	if player == null:
+		return
+	var area := _resolve_player_area()
+	if area == _player_area:
+		return
+	_player_area = area
+	if area != "" and not _areas_cleared.get(area, false):
+		_entry_gates[area] = _nearest_gate(area)  # 进入未清区域：入口门=进入瞬间最近的门
+	_refresh_doors()
+
+func _resolve_player_area() -> String:
+	for id: String in _room_rects:
+		if (_room_rects[id] as Rect2).has_point(player.global_position):
+			return id
+	return ""  # 走廊/界外
+
+func _nearest_gate(area_id: String) -> DoorGate:
+	var best: DoorGate = null
+	var best_d := INF
+	for gate in doors:
+		if String(gate.get_meta("edge")).split("|")[1] != area_id:
+			continue
+		var d: float = gate.global_position.distance_to(player.global_position)
+		if d < best_d:
+			best_d = d
+			best = gate
+	return best
+
+func _refresh_doors() -> void:
+	## 门状态规则（L01-P0-07e，§2）：已清区域→永久解锁常开；未清区域内→仅入口门可通行；
+	## 区域外（含走廊）→可进入（靠近自动开）。
+	for gate in doors:
+		var own: String = String(gate.get_meta("edge")).split("|")[1]
+		if _areas_cleared.get(own, false):
+			gate.unlock()
+		elif _player_area == own and gate != _entry_gates.get(own):
+			gate.lock()
+		else:
+			gate.unlock()
 
 func _ready() -> void:
 	var doc := FileAccess.open(DOC_PATH, FileAccess.READ)
@@ -173,7 +217,7 @@ func _flush_gate(area_id: String, edge: String, run: Array[Vector2i], origin: Ve
 func _edge_key(a: String, b: String) -> String:
 	return "%s-%s" % [mini(a.hash(), b.hash()), maxi(a.hash(), b.hash())]
 
-## 区域敌人全灭 → 区域已清（§2）→ 两端门解锁（已清区域间保持解锁可回头）。
+## 区域敌人全灭 → 区域已清（§2）→ 仅解锁门所在区域一侧的门（L01-P0-07e：邻区已清不连带解锁）。
 func _on_area_enemy_died(area_id: String) -> void:
 	if _area_enemies.has(area_id):
 		for e in _area_enemies[area_id]:
@@ -185,10 +229,8 @@ func _mark_cleared(area_id: String) -> void:
 	if _areas_cleared.get(area_id, false):
 		return
 	_areas_cleared[area_id] = true
-	for gate in doors:
-		var parts: PackedStringArray = String(gate.get_meta("edge")).split("|")
-		if parts[1] == area_id or parts[2] == area_id:
-			gate.unlock()
+	_entry_gates.erase(area_id)  # 已清后封禁解除（L01-P0-07e）
+	_refresh_doors()
 	print("[Level] 区域 %s 已清 → 四周房门解锁" % area_id)
 
 # ---------- 走廊（§4.7 宽4×长12，无敌人） ----------

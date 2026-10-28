@@ -1,6 +1,7 @@
 class_name DoorGate
 extends Node2D
-## 房门（GAME.md §2 房门规则、§5 D）：锁定=碰撞+深红；解锁后玩家靠近 ≤2 tile 自动开（蓝），首次打开后常开不再关（L01-P0-07d）。
+## 房门（GAME.md §2 房门规则、§5 D）：锁定=碰撞+深红；解锁后玩家靠近 ≤2 tile 自动开（蓝）。
+## 已清区域门首次打开后常开不再关（L01-P0-07d）；未清区域内除入口门外可重新锁闭（L01-P0-07e）。
 ## 门位=区域边缘中点 4 tile（§6.2）；边缘方向由生成器按门格位置判定（E/W=横向、N/S=纵向）。
 
 const OPEN_DIST: float = 32.0        # §4.7 房门开门距离 2 tile=32px
@@ -33,6 +34,12 @@ func set_player(p: Node2D) -> void:
 
 func unlock() -> void:
 	unlocked = true
+
+func lock() -> void:
+	## 重新锁闭（L01-P0-07e 未清区域封禁，§2）：关闭+恢复碰撞+深红；已清区域门不回锁
+	unlocked = false
+	open = false
+	_apply_state()
 
 func _physics_process(_delta: float) -> void:
 	if not unlocked or open:
