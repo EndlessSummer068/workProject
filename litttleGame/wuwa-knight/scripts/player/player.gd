@@ -9,6 +9,8 @@ signal skill_used(facing: Vector2)
 signal skill_cooldown_changed(remaining: float)
 signal hp_changed(current: int, max_hp: int)
 signal mp_changed(current: int, max_mp: int)
+signal ultimate_used(facing: Vector2)
+signal ultimate_cooldown_changed(remaining: float)
 signal exp_changed(current: int, need: int)
 signal leveled_up(level: int)
 signal coins_changed(total: int)
@@ -27,6 +29,11 @@ const LEVELUP_BASE_EXP := Balance.LEVELUP_BASE_EXP          # §4.5 LV2 需 20�
 const LEVELUP_EXP_STEP := Balance.LEVELUP_EXP_STEP          # §4.5 每级+10（提案）
 const MP_REGEN: float = Balance.PLAYER_MP_REGEN             # §4.1 MP 自然恢复 1/s（用户指令 2026-10-28）
 const DEFENSE_MIN_DAMAGE := Balance.DEFENSE_MIN_DAMAGE      # §4.1 减伤公式保底 1 点（用户指令 2026-10-28）
+const ULTIMATE_MP_COST := Balance.ULTIMATE_MP_COST          # §4.3 L「湮灭·终式」MP 消耗 60（用户指令 2026-10-28）
+const ULTIMATE_COOLDOWN: float = Balance.ULTIMATE_COOLDOWN  # §4.3 L 冷却 30s（提案）
+const ULTIMATE_DAMAGE_MULT: float = Balance.ULTIMATE_DAMAGE_MULT  # §4.3 L 5×攻击力
+const ULTIMATE_ARC_SCENE := preload("res://scenes/bullets/ultimate_arc.tscn")
+const ULTIMATE_RING_SCENE := preload("res://scenes/bullets/ultimate_ring.tscn")
 const HURT_FLASH_TIME: float = 0.15  # 受击反馈闪烁时长（占位表现，非 §4 字段）
 const FACING_DEFAULT := Vector2.RIGHT  # 初始朝向（提案：§2 朝向=最后移动方向）
 const MELEE_ARC_SCENE := preload("res://scenes/bullets/melee_arc.tscn")  # §4.2 W01 扇形判定
@@ -46,6 +53,8 @@ var _state: State = State.IDLE
 var _attack_timer: float = 0.0
 var _skill_timer: float = 0.0
 var _skill_cooling := false
+var _ultimate_timer: float = 0.0
+var _ultimate_cooling := false
 var _hurt_timer: float = 0.0
 var _mp_regen_acc: float = 0.0  # MP 自然恢复小数累积（§4.1 1/s，不足 1 点部分滚存）
 
@@ -119,6 +128,15 @@ func _physics_process(delta: float) -> void:
 		_attack()
 	if Input.is_action_just_pressed("skill"):
 		_use_skill()
+	if Input.is_action_just_pressed("ultimate"):
+		_use_ultimate()
+	_ultimate_timer = maxf(_ultimate_timer - delta, 0.0)
+	if _ultimate_cooling:  # 冷却归零回就绪（TECH §12 ultimate_cooldown_changed）
+		if _ultimate_timer <= 0.0:
+			_ultimate_cooling = false
+			ultimate_cooldown_changed.emit(0.0)
+		else:
+			ultimate_cooldown_changed.emit(_ultimate_timer)
 	if mp < max_mp:  # §4.1 MP 自然恢复 1/s（用户指令 2026-10-28）
 		_mp_regen_acc += MP_REGEN * delta
 		if _mp_regen_acc >= 1.0:
@@ -161,3 +179,32 @@ func _use_skill() -> void:
 	get_parent().add_child(arc)
 	arc.global_position = global_position
 	arc.rotation = facing.angle()
+
+## 大招 L「湮灭·终式」（§4.3，L02-P0-07）：冷却完毕且 MP≥60 缺一不可；
+## 释放=120°/200px 扇形（5×攻击力）+ 金黄闪光 + 冲击环（0.3s 消散）。
+func ultimate_power() -> int:
+	return int(round(attack_power() * ULTIMATE_DAMAGE_MULT))
+
+func _use_ultimate() -> void:
+	if _ultimate_timer > 0.0:  # §4.3：冷却中无效
+		print("[Player] 大招L 冷却中 剩余 %.1fs" % _ultimate_timer)
+		return
+	if mp < ULTIMATE_MP_COST:  # §4.3/§8：MP 不足无效，图标提示归 HUD 三态
+		print("[Player] 大招L MP不足 %d/%d（需 %d）" % [mp, max_mp, ULTIMATE_MP_COST])
+		return
+	mp -= ULTIMATE_MP_COST
+	mp_changed.emit(mp, max_mp)
+	_ultimate_timer = ULTIMATE_COOLDOWN
+	_ultimate_cooling = true
+	ultimate_used.emit(facing)
+	ultimate_cooldown_changed.emit(_ultimate_timer)
+	print("[Player] 大招L 释放 MP=%d/%d 伤害=%d 冷却 %.0fs" % [mp, max_mp, ultimate_power(), ULTIMATE_COOLDOWN])
+	var arc: Area2D = ULTIMATE_ARC_SCENE.instantiate()
+	arc.setup()
+	arc.damage = ultimate_power()  # §4.3 5×攻击力
+	get_parent().add_child(arc)
+	arc.global_position = global_position
+	arc.rotation = facing.angle()
+	var ring: Node2D = ULTIMATE_RING_SCENE.instantiate()
+	get_parent().add_child(ring)
+	ring.global_position = global_position

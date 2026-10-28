@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/bullets/ultimate_ring.gd" id="1_ur"]
+
+[node name="UltimateRing" type="Node2D"]
+z_index = 2
+script = ExtResource("1_ur")
+
+[node name="Ring" type="Line2D" parent="."]
+width = 8.0
+default_color = Color(0.94902, 0.83529, 0.49412, 1)
+joint_mode = 2
+closed = true

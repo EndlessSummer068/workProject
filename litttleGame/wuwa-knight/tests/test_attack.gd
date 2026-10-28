@@ -13,8 +13,10 @@ func _run() -> void:
 	await physics_frame
 	await physics_frame
 	var player := arena.get_node("Player") as CharacterBody2D
+	# stamp 用物理帧计数折算秒（60Hz）：冷却按物理 tick 计（§4.2），headless 下墙钟会因
+	# 物理 tick 追赶补账失真（一帧跑多 tick 时 30 tick 的墙钟 <0.5s），物理帧数才是准测量。
 	var stamps: Array[float] = []
-	player.attacked.connect(func(_f: Vector2) -> void: stamps.append(Time.get_ticks_msec() / 1000.0))
+	player.attacked.connect(func(_f: Vector2) -> void: stamps.append(float(Engine.get_physics_frames()) / 60.0))
 
 	# TEST1: 按住 J 1.2s → 攻击 3 次，相邻间隔 0.50±0.05s（§4.2 冷却）
 	Input.action_press("attack")
