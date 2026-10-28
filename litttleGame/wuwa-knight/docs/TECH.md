@@ -123,7 +123,7 @@ const GOLD_SMALL := 2                 # §4.5 金币：小怪
 
 ## 11. 状态机约定
 
-- 玩家：`enum State { IDLE, MOVE, ATTACK, SKILL, ULTIMATE, HURT, DEAD }`（SKILL/ULTIMATE 二期实现，占位不删）。
+- 玩家：`enum State { IDLE, MOVE }`（按需扩展）；K 技能（L01-P2-01）=瞬发直伤：经信号 `skill_used` / `skill_cooldown_changed` 驱动 + 瞬时扇形判定实体实装，不占用持续状态；ATTACK/ULTIMATE/HURT/DEAD 等状态随 L 大招等二期扩展。
 - 敌人：`enum State { IDLE, CHASE, ATTACK, HURT, DEAD }`，E03 自爆虫追加 `SELF_DESTRUCT`；B01 用 `enum State { PHASE1, PHASE2, PHASE3 }`（阶段定义见 GAME.md §4.4）。
 - 每个状态机必须发统一信号：`signal state_changed(from: State, to: State)`；禁止跨节点直接改别人状态，只经信号/方法。
 
@@ -174,7 +174,7 @@ func recycle(b: Bullet) -> void           # 归还并隐藏
 | §8 | 数值配置 | §4（全部小节，唯一数值来源） |
 | §9 | 导入 Nearest/无 Mipmap | §7（缩放规则：整数倍+最近邻） |
 | §10 | GDScript 风格 | —（工程约定） |
-| §11 | 状态机 | §2（玩法：攻击/技能/清关流程）、§4.4（Boss 三阶段） |
+| §11 | 状态机 | §2（玩法：攻击/技能/清关流程）、§4.3（K 技能瞬发与冷却信号）、§4.4（Boss 三阶段） |
 | §12 | 信号与分组 | §2（核心循环事件）、§5（实体分组） |
 | §13 | 对象池 | §4.1（同屏敌人上限 30）、§4.4（弹幕环）、§4.5（掉落不池化） |
 | §14 | 调试开关 | §4.1（无敌）、§9（重开/跳转流程） |

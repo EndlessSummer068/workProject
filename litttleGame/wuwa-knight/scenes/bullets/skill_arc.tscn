@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/bullets/skill_arc.gd" id="1_s"]
+
+[node name="SkillArc" type="Area2D"]
+collision_layer = 0
+collision_mask = 4
+script = ExtResource("1_s")
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
+
+[node name="Visual" type="Polygon2D" parent="."]
+color = Color(0.94902, 0.83529, 0.49412, 0.5)
