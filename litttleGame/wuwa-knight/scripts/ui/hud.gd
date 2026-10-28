@@ -56,11 +56,12 @@ func _on_player_mp_changed(current: int, max_mp: int) -> void:
 func _on_player_coins_changed(total: int) -> void:
 	_refresh_coins(total)
 
-## 升级 → 等级与 HP 上限同步（hp_changed 不随升级发射，回读玩家字段，§8 左上）。
+## 升级 → 等级/HP/防御同步（hp_changed 不随升级发射，回读玩家字段，§8 左上）。
 func _on_player_leveled_up(level: int) -> void:
 	if _player != null:
 		_refresh_lv(level)
 		_refresh_hp(_player.hp, _player.max_hp)
+		_refresh_defense(_player.defense)  # 升级防御+1（§4.1 用户指令 2026-10-29）
 
 func _refresh_lv(level: int) -> void:
 	_lv_label.text = "Lv %d" % level

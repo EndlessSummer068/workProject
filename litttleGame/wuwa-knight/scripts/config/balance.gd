@@ -19,6 +19,7 @@ const R01_COIN := 2                            # §4.5 金币 小怪+2（Q5）
 const LEVELUP_BASE_EXP := 20                   # §4.5 LV2 升级所需经验 20（提案，L01-P0-06）
 const LEVELUP_EXP_STEP := 10                   # §4.5 此后每级所需经验+10（提案，L01-P0-06）
 const LEVELUP_HP_BONUS := 1                    # §4.1 升级成长 HP 上限+1（Q2）
+const LEVELUP_DEFENSE_BONUS := 1               # §4.1 升级成长 防御+1/级（用户指令 2026-10-29；血量同步回满至新上限）
 const LEVELUP_ATTACK_BONUS: float = 0.10       # §4.1 升级成长 攻击+10%/级（Q2）
 const CAMERA_DOOR_FOLLOW_RADIUS: float = 64.0  # §8 相机门旁纯跟随半径 4 tile（提案，L01-P1-01b 用户指令）
 const CAMERA_DOOR_BLEND_RADIUS: float = 128.0  # §8 相机恢复区域钳制半径 8 tile（提案，L01-P1-01b 用户指令）

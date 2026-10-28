@@ -68,6 +68,15 @@ func _run() -> void:
 	var ok5: bool = lplayer.mp == 53 and mp_signals == [53]
 	_check("TEST5 mp_gain_on_kill", ok5, "MP=%d signals=%s (期望 50+3=53)" % [lplayer.mp, mp_signals])
 
+	# TEST6: 升级成长（§4.1 用户指令 2026-10-29）：HP+1 且回满至新上限、防御+1、攻击+10%
+	lplayer.hp = lplayer.max_hp - 3  # 先扣血制造缺口，验证回满
+	var def0: int = lplayer.defense
+	lplayer.gain_reward(lplayer.exp_next, 0)  # 经验补足到升级线 → 恰升 1 级
+	var ok6: bool = lplayer.level == 2 and lplayer.max_hp == 7 and lplayer.hp == 7 \
+		and lplayer.defense == def0 + 1 and lplayer.attack_power() == 11
+	_check("TEST6 levelup_full_heal_defense", ok6,
+		"Lv=%d HP=%d/%d DEF=%d→%d ATK=%d (期望 Lv2、回满 7、防御 %d+1、攻击 11)" % [lplayer.level, lplayer.hp, lplayer.max_hp, def0, lplayer.defense, lplayer.attack_power(), def0])
+
 	if _fail:
 		print("RESULT: FAILED")
 		quit(1)

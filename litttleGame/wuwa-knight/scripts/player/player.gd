@@ -24,6 +24,7 @@ const ATTACK_BASE: int = Balance.WEAPON_W01_ATTACK_DAMAGE  # §4.2 W01 攻击力
 const SKILL_COOLDOWN: float = Balance.SKILL_K_COOLDOWN  # §4.3 K 技能冷却 10s（Q1）
 const SKILL_DAMAGE_MULT: float = Balance.SKILL_K_DAMAGE_MULT  # §4.3 K「湮灭」3×攻击力
 const LEVELUP_HP_BONUS := Balance.LEVELUP_HP_BONUS          # §4.1 升级成长 HP 上限+1
+const LEVELUP_DEFENSE_BONUS := Balance.LEVELUP_DEFENSE_BONUS  # §4.1 升级成长 防御+1（用户指令 2026-10-29）
 const LEVELUP_ATTACK_BONUS: float = Balance.LEVELUP_ATTACK_BONUS  # §4.1 升级成长 攻击+10%/级
 const LEVELUP_BASE_EXP := Balance.LEVELUP_BASE_EXP          # §4.5 LV2 需 20（提案）
 const LEVELUP_EXP_STEP := Balance.LEVELUP_EXP_STEP          # §4.5 每级+10（提案）
@@ -44,7 +45,7 @@ var max_hp: int = Balance.PLAYER_MAX_HP  # §4.1 玩家 HP 6
 var hp: int = max_hp
 var max_mp: int = Balance.PLAYER_MP_MAX  # §4.1 MP 上限 100 初始满（用户指令 2026-10-28）
 var mp: int = max_mp
-var defense: int = Balance.PLAYER_DEFENSE  # §4.1 防御力初值（§4.1：L02 阶段恒为初值，无获取渠道）
+var defense: int = Balance.PLAYER_DEFENSE  # §4.1 防御力初值（升级每级+1=用户指令 2026-10-29；商店/宝箱暂无防御项）
 var level := 1
 var exp_current := 0
 var exp_next := LEVELUP_BASE_EXP
@@ -74,7 +75,7 @@ func attack_power() -> int:
 func skill_power() -> int:
 	return int(round(attack_power() * SKILL_DAMAGE_MULT))
 
-## 拾取 R01：经验入账（溢出累进）、金币入账；升级 HP 上限+1、攻击+10%（§4.1）。
+## 拾取 R01：经验入账（溢出累进）、金币入账；升级 HP 上限+1、血量回满至新上限、攻击+10%、防御+1（§4.1，回满血/防御=用户指令 2026-10-29）。
 func gain_reward(exp_gain: int, coin_gain: int) -> void:
 	coins += coin_gain
 	coins_changed.emit(coins)
@@ -83,10 +84,12 @@ func gain_reward(exp_gain: int, coin_gain: int) -> void:
 		exp_current -= exp_next
 		level += 1
 		max_hp += LEVELUP_HP_BONUS
+		hp = max_hp  # 升级血量回满至新上限（§4.1 用户指令 2026-10-29）
+		defense += LEVELUP_DEFENSE_BONUS  # 升级防御+1（§4.1 用户指令 2026-10-29）
 		exp_next += LEVELUP_EXP_STEP
 		leveled_up.emit(level)
 	exp_changed.emit(exp_current, exp_next)
-	print("[Player] Lv=%d HP=%d/%d ATK=%d EXP=%d/%d 金币=%d" % [level, hp, max_hp, attack_power(), exp_current, exp_next, coins])
+	print("[Player] Lv=%d HP=%d/%d ATK=%d DEF=%d EXP=%d/%d 金币=%d" % [level, hp, max_hp, attack_power(), defense, exp_current, exp_next, coins])
 
 ## 击杀回蓝（§4.1：小怪+3/精英+6/Boss·小 Boss+15，用户指令 2026-10-28）；
 ## 经敌人死亡信号驱动（TECH §12 mp_changed），由 LevelGenerator 接线调用。

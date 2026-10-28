@@ -2,8 +2,9 @@ class_name EnemyE02
 extends CharacterBody2D
 ## E02 残象射手（GAME.md §4.4）：远程弹幕小兵。
 ## AI（L02 提案）：玩家进入触发半径 160 px → 以 60 px/s 追近；
-## 距离 ≤128 px（射程）→ 站定、每 1.2 s 朝玩家发射 1 弹（弹速 200、伤害 1，走 BulletPool）；
-## 玩家拉开 >128 px → 恢复追近。状态机约定见 TECH.md §11（IDLE/CHASE/ATTACK）。
+## 距离 ≤128 px（射程）→ 站定、每 2.5 s 朝玩家发射 1 弹（弹速 200、伤害 1，走 BulletPool）；
+## 玩家拉开 >128 px → 恢复追近；冷却跨状态保持——拉出射程再进不重置间隔（2026-10-29 bug 修复：射程边缘进出不再连发两发）。
+## 状态机约定见 TECH.md §11（IDLE/CHASE/ATTACK）。
 
 signal state_changed(from: State, to: State)
 signal hp_changed(current: int, max_hp: int)
@@ -15,7 +16,7 @@ enum State { IDLE, CHASE, ATTACK }
 const MOVE_SPEED: float = Balance.E02_MOVE_SPEED        # §4.4 E02 移速 60 px/s（提案）
 const DAMAGE := Balance.E02_DAMAGE                      # §4.4 E02 伤害 1（弹）
 const ATTACK_RANGE: float = Balance.E02_ATTACK_RANGE    # §4.4 E02 射程 128 px（L02 提案）
-const ATTACK_INTERVAL: float = Balance.E02_ATTACK_INTERVAL  # §4.4 E02 攻击间隔 1.2 s（L02 提案）
+const ATTACK_INTERVAL: float = Balance.E02_ATTACK_INTERVAL  # §4.4 E02 攻击间隔 2.5 s（用户指令 2026-10-29：降射速，原 L02 提案 1.2 s）
 const MAX_HP := Balance.E02_MAX_HP                      # §4.4 E02 HP 6
 const R01_SCENE := preload("res://scenes/rewards/r01.tscn")  # §4.5 掉落 R01
 
@@ -102,6 +103,7 @@ func _set_state(next: State) -> void:
 		return
 	var prev := _state
 	_state = next
-	if next == State.ATTACK:
-		_shoot_timer = 0.0  # 入攻击态立即开火（间隔从首弹起算）
+	# 冷却跨状态保持（§4.4 2026-10-29 bug 修复）：不再在此重置 _shoot_timer——
+	# 否则玩家在射程边缘短暂进出会清零冷却，重进 ATTACK 立即连发两发。
+	# 首次接触立即开火由 _shoot_timer 初始 0 保证（IDLE/CHASE 期间 timer 不递减、保留剩余值）。
 	state_changed.emit(prev, next)

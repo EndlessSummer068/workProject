@@ -52,10 +52,12 @@ func _run() -> void:
 	var ok3: bool = coins_label.text == "金币 2"
 	_check("TEST3 coin_sync", ok3, "coins='%s'" % coins_label.text)
 
-	# TEST4: 升级 → 等级与 HP 上限同步（§8 左上；升级不改当前 HP）
+	# TEST4: 升级 → 等级/HP/防御同步（§8 左上；升级回满血至新上限+防御+1，用户指令 2026-10-29）
 	player.gain_reward(20, 0)
-	var ok4: bool = lv_label.get_parsed_text() == "Lv 2" and hp_label.get_parsed_text() == "HP 5/7"
-	_check("TEST4 level_sync", ok4, "lv='%s' hp='%s'" % [lv_label.get_parsed_text(), hp_label.get_parsed_text()])
+	# 升级回满血至新上限+防御+1（§4.1 用户指令 2026-10-29）：HP 7/7、防御行同步刷 1
+	var ok4: bool = lv_label.get_parsed_text() == "Lv 2" and hp_label.get_parsed_text() == "HP 7/7" \
+		and def_label.get_parsed_text() == "防御 1"
+	_check("TEST4 level_sync", ok4, "lv='%s' hp='%s' def='%s'" % [lv_label.get_parsed_text(), hp_label.get_parsed_text(), def_label.get_parsed_text()])
 
 	# TEST4b: 击杀回蓝 → MP 行同步（§8 左上=…MP；TECH §12 mp_changed）
 	player.mp = 50

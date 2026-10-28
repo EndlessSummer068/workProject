@@ -116,11 +116,25 @@ func _run() -> void:
 	var ok4b := absf(dt2 - Balance.E02_ATTACK_INTERVAL) <= 0.25
 	_check("T4b attack_interval_2.5s", ok4b, "第二发距首发=%.2fs（期望 %.1f±0.25，含命中回收干扰）" % [dt2, Balance.E02_ATTACK_INTERVAL])
 
+	# T4c: 冷却跨状态保持（§4.4 2026-10-29 bug 修复）：拉出射程再重进，不立即重发第三发
+	# （修复前：重进 ATTACK 会把 _shoot_timer 清 0 → 间隔内连发两发）
+	var t2 := Time.get_ticks_msec()
+	player.global_position = e02.global_position + Vector2(200, 0)  # 拉出射程 128 → CHASE
+	for i in 20:
+		await physics_frame
+	player.global_position = e02.global_position + Vector2(100, 0)  # 重进射程 → ATTACK
+	for i in 20:
+		await physics_frame
+	var dt3 := (Time.get_ticks_msec() - t2) / 1000.0
+	var ok4c: bool = shots.size() == 2 and dt3 < 1.5  # 全程 <1.5s << 冷却 2.5s，期望无第三发
+	_check("T4c no_refire_on_reenter", ok4c, "shots=%d 进出耗时=%.2fs（期望仍 2 发：冷却跨状态保持）" % [shots.size(), dt3])
+
 	# T6: 命中玩家扣 1 HP（弹飞行至玩家；玩家防御 0 → 6→5）
+	# 等待窗口 180 帧=3s：T4c 冷却跨状态保持后，下一发可能在 interval 尾段（>旧 1.5s 窗口）
 	_lprint("step: T6 begin")
 	var hp0 := player.hp
 	var wait := 0
-	while player.hp == hp0 and wait < 90:
+	while player.hp == hp0 and wait < 180:
 		await physics_frame
 		wait += 1
 	_check("T6 bullet_hits_player", player.hp == hp0 - 1, "HP %d→%d（E02 伤害 1，防御 %d）" % [hp0, player.hp, player.defense])
