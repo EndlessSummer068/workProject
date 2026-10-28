@@ -2,12 +2,13 @@ class_name HUD
 extends CanvasLayer
 ## HUD（GAME.md §8）：左上=四项竖排：等级、HP、防御、MP
 ## （HP 数值=红 #C0392B、MP 数值=蓝 #58C4DD，均借 §7.2 现有色；防御=正文白）；右上=金币；
-## 右下=技能图标横排 K、L（L02-P0-07：K 从底部中间迁来样式不变；L 三态=就绪高亮 #F2D57E /
+## 右下=技能图标横排 K、L（L02-P0-07：K 从底部中间迁来样式不变；L 三态=就绪高亮 #9B59D0（2026-10-29 用户指令：与 K 金黄区分，同大招特效紫）/
 ## 冷却灰 #4A4A55+剩余秒数 / MP<60 半透明+「缺 MP」提示）。
 ## 不参与 z_index、不随相机移动（§7.3/§7.4：UI 坐标基于视口，四边内缩 8 px 安全区，字号 12/16/24）。
 ## 数据经玩家信号驱动（TECH §12），由 LevelGenerator 生成后 bind_player()，不做跨节点长路径查询。
 
 const K_READY_COLOR := Balance.SKILL_K_COLOR  # 就绪高亮 #F2D57E（§7.2 P01 主色调，L01-P2-01）
+const L_READY_COLOR := Balance.ULTIMATE_COLOR  # L 就绪高亮 #9B59D0（§8，2026-10-29 用户指令：与 K 金黄区分，同大招特效紫）
 const K_COOLDOWN_GRAY := Color("4a4a55")      # 冷却中灰块（借 §7.2 墙色，L01-P1-02 提案）
 const ULT_MP_COST := Balance.ULTIMATE_MP_COST  # §4.3 L 缺 MP 判定阈值 60
 
@@ -97,7 +98,7 @@ func _refresh_l_icon() -> void:
 		_l_slot.modulate.a = 1.0
 		_ult_hint.visible = false
 	elif _player != null and _player.mp < ULT_MP_COST:
-		_l_slot.color = K_READY_COLOR
+		_l_slot.color = L_READY_COLOR
 		_l_label.text = "L"
 		_l_slot.modulate.a = 0.4  # 半透明（§8 缺 MP 态）
 		_ult_hint.visible = true
@@ -109,7 +110,7 @@ func _set_k_ready() -> void:
 	_k_label.text = "K"
 
 func _set_l_ready() -> void:
-	_l_slot.color = K_READY_COLOR
+	_l_slot.color = L_READY_COLOR
 	_l_label.text = "L"
 	_l_slot.modulate.a = 1.0
 	_ult_hint.visible = false

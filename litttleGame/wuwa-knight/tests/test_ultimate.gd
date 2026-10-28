@@ -50,15 +50,15 @@ func _run() -> void:
 	var l_label: Label = hud.get_node("LSlot/LLabel")
 	var ult_hint: Label = hud.get_node("UltHint")
 	var k_slot: ColorRect = hud.get_node("KSlot")
-	var ready_gold := Color("f2d57e")
+	var ready_purple := Balance.ULTIMATE_COLOR  # L 就绪色 #9B59D0（§8，2026-10-29 用户指令：与 K 金黄区分）
 	var cooldown_gray := Color("4a4a55")
 	var uses_arr: Array[int] = []  # lambda 按值捕获标量不可增改，用数组（引用）计数
 	player.ultimate_used.connect(func(_f: Vector2) -> void: uses_arr.append(1))
 	var cooldowns: Array[float] = []
 	player.ultimate_cooldown_changed.connect(func(r: float) -> void: cooldowns.append(r))
 
-	# T1: 就绪态=「L」+高亮 #F2D57E（§8）；K/L 右下横排（K 左 L 右、间距、右下安全区 8px）
-	var ok1: bool = l_slot.color.is_equal_approx(ready_gold) and l_label.text == "L" and not ult_hint.visible \
+	# T1: 就绪态=「L」+高亮 #9B59D0 紫（§8，2026-10-29 用户指令：与 K 金黄区分）；K/L 右下横排（K 左 L 右、间距、右下安全区 8px）
+	var ok1: bool = l_slot.color.is_equal_approx(ready_purple) and not l_slot.color.is_equal_approx(k_slot.color) and l_label.text == "L" and not ult_hint.visible \
 		and k_slot.position.x < l_slot.position.x \
 		and absf(k_slot.position.y - l_slot.position.y) < 0.5 \
 		and l_slot.position.x + l_slot.size.x <= 1152.0 - 8.0 + 0.5 \
@@ -103,7 +103,7 @@ func _run() -> void:
 
 	# T7: 冷却归零信号后 MP=60 仍可再释放（30s 冷却时长由 T2 信号值验证，不真等 30s）
 	_lprint("step: T7 begin")
-	var ok7a: bool = cooldowns.has(0.0) and l_slot.color.is_equal_approx(ready_gold) and l_label.text == "L"
+	var ok7a: bool = cooldowns.has(0.0) and l_slot.color.is_equal_approx(ready_purple) and l_label.text == "L"
 	await _press_l()
 	var ok7b: bool = player.mp == 0 and uses_arr.size() == 2
 	_check("T7 cooldown_reset_recast", ok7a and ok7b, "冷却归零信号=%s 图标就绪=%s；MP=%d(期望60-60=0) uses=%d" % [cooldowns.has(0.0), ok7a, player.mp, uses_arr.size()])

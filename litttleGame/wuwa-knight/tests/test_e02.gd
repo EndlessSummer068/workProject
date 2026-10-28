@@ -1,7 +1,7 @@
 extends SceneTree
 ## L02-P0-01 E02 远程 AI 与敌弹幕验收测试（BUILD_PLAN.md）：headless 运行。
 ## 运行：Godot_v4.7.2 --headless --path <项目> --script res://tests/test_e02.gd
-## 覆盖：触发半径→追近（60px/s）、射程内站定射击（间隔 1.2s）、弹速 200、
+## 覆盖：触发半径→追近（60px/s）、射程内站定射击（间隔 2.5s，2026-10-29 用户指令）、弹速 200、
 ##       命中玩家扣 1 HP、拉开>128 恢复追近、敌弹碰墙消失、BulletPool 池化复用。
 
 var _fail := false
@@ -84,7 +84,7 @@ func _run() -> void:
 	_check("T2 chase_on_trigger", ok2, "states=%s" % [states])
 	_check("T3 chase_speed_60", ok3 and states.has(EnemyE02.State.ATTACK), "位移=%.1fpx 用时=%.3fs 速度=%.1fpx/s（期望 60±5%%）→ 已转 ATTACK" % [travel, dt, speed])
 
-	# T4: ATTACK 站定发弹：立即首弹 + 1.2s 后第二弹（间隔 1.2±0.1s）；T5: 弹速 200±5%
+	# T4: ATTACK 站定发弹：立即首弹 + 2.5s 后第二弹（间隔 2.5±0.25s）；T5: 弹速 200±5%
 	_lprint("step: T4 begin state=%d" % e02._state)
 	var pool := root.get_node("BulletPool")
 	var shots: Array[int] = []
@@ -108,12 +108,13 @@ func _run() -> void:
 	_check("T4a attack_first_shot", ok4a, "active=%d→%d 站定 velocity=%s" % [count0, pool._active_count, e02.velocity])
 	_check("T5 bullet_speed_200", bspeed > 0 and absf(bspeed - Balance.ENEMY_BULLET_SPEED) <= Balance.ENEMY_BULLET_SPEED * 0.08, "0.05s 位移=%.1fpx 弹速=%.0fpx/s（期望 200±8%%帧差）" % [bdist, bspeed])
 	# 第二发以 shot_fired 计数判定（首弹 0.64s 命中回收使池计数回落，不能用作依据）
+	# 等待窗口=interval+2.5s 余量（2026-10-29 间隔改 2.5s 后原 2500ms 窗口不够）
 	var t1 := Time.get_ticks_msec()
-	while shots.size() < 2 and Time.get_ticks_msec() - t1 < 2500:
+	while shots.size() < 2 and Time.get_ticks_msec() - t1 < (Balance.E02_ATTACK_INTERVAL + 2.5) * 1000:
 		await physics_frame
 	var dt2 := (Time.get_ticks_msec() - t1) / 1000.0
 	var ok4b := absf(dt2 - Balance.E02_ATTACK_INTERVAL) <= 0.25
-	_check("T4b attack_interval_1.2s", ok4b, "第二发距首发=%.2fs（期望 1.2±0.25，含命中回收干扰）" % dt2)
+	_check("T4b attack_interval_2.5s", ok4b, "第二发距首发=%.2fs（期望 %.1f±0.25，含命中回收干扰）" % [dt2, Balance.E02_ATTACK_INTERVAL])
 
 	# T6: 命中玩家扣 1 HP（弹飞行至玩家；玩家防御 0 → 6→5）
 	_lprint("step: T6 begin")

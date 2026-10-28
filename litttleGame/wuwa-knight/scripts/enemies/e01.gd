@@ -26,6 +26,7 @@ var _target: Node2D = null
 @onready var _contact: Area2D = $ContactArea
 
 func _ready() -> void:
+	$ContactArea/Shape.shape.radius = Balance.E01_CONTACT_RADIUS  # §4.4 接触判定半径 20（2026-10-29 用户指令；tscn 占位值不作数，统一走 balance）
 	_detect.body_entered.connect(_on_detect_entered)
 	_detect.body_exited.connect(_on_detect_exited)
 
