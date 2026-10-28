@@ -165,9 +165,9 @@ func _run() -> void:
 	# T10: 死亡弹窗与重开（§8/§9，L01-P0-08）
 	player.take_damage(999)  # HP 归 0 → died 信号 → 弹窗（惰性实例化）+暂停
 	await physics_frame
-	var dialog: CanvasLayer = null
+	var dialog: DeathDialog = null
 	for c in level.get_children():
-		if c is CanvasLayer:
+		if c is DeathDialog:  # 精确匹配（L01-P1-02：HUD 也是 CanvasLayer，不可泛匹配）
 			dialog = c
 	var ok10a: bool = dialog != null and dialog.visible and paused
 	_check("T10a death_dialog", ok10a, "dialog=%s visible=%s paused=%s" % [dialog != null, dialog.visible if dialog != null else "-", paused])
@@ -194,9 +194,9 @@ func _run() -> void:
 			e01_count += 1
 	_check("T10d enemies_revived", e01_count == 10, "e01=%d (期望 10)" % e01_count)
 	# T10e: 重载干净=无残留弹窗（未死亡不弹窗）、游戏未暂停
-	var d2: CanvasLayer = null
+	var d2: DeathDialog = null
 	for c in lvl2.get_children():
-		if c is CanvasLayer:
+		if c is DeathDialog:  # 精确匹配（L01-P1-02：HUD 也是 CanvasLayer，不可泛匹配）
 			d2 = c
 	_check("T10e clean_reload", d2 == null and not paused, "leftover_dialog=%s paused=%s" % [d2 != null, paused])
 

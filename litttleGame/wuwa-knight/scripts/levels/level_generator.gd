@@ -16,6 +16,7 @@ const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const E01_SCENE := preload("res://scenes/enemies/e01.tscn")
 const DOOR_SCENE := preload("res://scenes/levels/door_gate.tscn")
 const DEATH_DIALOG := preload("res://scenes/ui/death_dialog.tscn")  # §8 死亡弹窗（L01-P0-08）
+const HUD_SCENE := preload("res://scenes/ui/hud.tscn")              # §8 HUD（L01-P1-02）
 const FLOOR_COLOR := Color("2b2b33")  # §7.2 地板
 const WALL_COLOR := Color("4a4a55")   # §7.2 墙
 const DOOR_COLOR := Color("58c4dd")   # §7.2 门（开）——门格地板色，门体颜色由 DoorGate 管理
@@ -118,6 +119,9 @@ func _ready() -> void:
 	_setup_camera(Vector2i(x_extent, y_extent))
 	if player != null:
 		player.died.connect(_on_player_died)  # §9 死亡弹窗（L01-P0-08）
+		var hud: HUD = HUD_SCENE.instantiate()
+		add_child(hud)
+		hud.bind_player(player)  # §8 HUD 数据绑定（L01-P1-02）
 	print("[Level] 全地图=%d×%d tile 门=%d 已清=%s" % [x_extent, y_extent, doors.size(), _areas_cleared])
 
 # ---------- 区域 ----------
