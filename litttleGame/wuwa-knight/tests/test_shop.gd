@@ -47,6 +47,11 @@ func _run() -> void:
 	panel.item_purchased.connect(func(id: String): bought.append(id))
 	player.attacked.connect(func(_f: Vector2): attacks.append(1))
 
+	# ---- T0: 开局金币=200（§4.5 正式规则，2026-10-29 用户指令）----
+	_check("T0_start_coins", player.coins == Balance.PLAYER_START_COINS
+		and player.weapon_stacks.has("W01") and player.weapon_buys["W01"] == 1,
+		"coins=%d stacks=%s buys=%s" % [player.coins, player.weapon_stacks, player.weapon_buys])
+
 	# ---- T1: 靠近按 E 打开面板（§4.5/§8）----
 	Input.action_press("interact")
 	for i in FRAME_WAIT:
@@ -151,29 +156,42 @@ func _run() -> void:
 		"stacks=%d mp=%d（命中+2，自然恢复<1 不干扰）" % [player.buff_stacks["U03"], player.mp])
 	panel.open(player)  # 重开面板继续购买类测试
 
-	# ---- T9: 武器购买=扣 80+装备切换+攻击力生效；已持有拦截（§4.2/§4.5 02a 过渡）----
-	player.coins = 200
+	# ---- T9: 武器首购=获得+装备；同款再买=叠层+1 攻击+10%（§4.2/§4.5，L02-P0-02b）----
+	player.coins = 600
 	player.coins_changed.emit(player.coins)
-	panel._buttons["W02"].pressed.emit()
+	panel._buttons["W02"].pressed.emit()  # 首购 -80 → 520 层0 atk=18
 	await physics_frame
-	var atk_after := player.attack_power()
-	panel._buttons["W02"].pressed.emit()  # 已持有 → 拦截
+	var atk_first := player.attack_power()
+	panel._buttons["W02"].pressed.emit()  # 叠1 -80 → 440 层1 atk=round(18×1.1)=20
 	await physics_frame
-	var coins_after_dup := player.coins
-	panel._buttons["W01"].pressed.emit()  # W01 初始已持有 → 拦截
+	var atk_s1 := player.attack_power()
+	panel._buttons["W02"].pressed.emit()  # 叠2 -80 → 360 层2 atk=round(18×1.2)=22
 	await physics_frame
-	_check("T9_weapon_buy_equip", player.weapon_id == "W02" and atk_after == 18
-		and player.coins == 120 and coins_after_dup == 120 and player.owned_weapons.has("W02"),
-		"weapon=%s atk=%d coins=%d/%d owned=%s" % [player.weapon_id, atk_after, player.coins, coins_after_dup, player.owned_weapons])
+	var atk_s2 := player.attack_power()
+	_check("T9_weapon_stack_buy", player.weapon_id == "W02" and atk_first == 18 and atk_s1 == 20 and atk_s2 == 22
+		and player.weapon_stacks["W02"] == 2 and player.weapon_buys["W02"] == 3 and player.coins == 360,
+		"weapon=%s atk=%d→%d→%d 层=%d 笔=%d 金币=%d" % [player.weapon_id, atk_first, atk_s1, atk_s2,
+		player.weapon_stacks["W02"], player.weapon_buys["W02"], player.coins])
+
+	# ---- T14: 武器叠层上限 5 层（§4.2）：叠满后卡片灰+拦截不扣费 ----
+	for i in 3:  # 层3/4/5 → -240 → 120
+		panel._buttons["W02"].pressed.emit()
+		await physics_frame
+	var coins_at_full := player.coins  # 120
+	panel._buttons["W02"].pressed.emit()  # 满层 → 拦截
+	await physics_frame
+	_check("T14_max_stack", player.weapon_stacks["W02"] == 5 and player.coins == coins_at_full
+		and panel._msg.text.contains("叠层已满"),
+		"层=%d 金币=%d→%d msg=%s" % [player.weapon_stacks["W02"], coins_at_full, player.coins, panel._msg.text])
 
 	# ---- T10: 金币不足拦截（§8：提示不扣费）----
 	player.coins = 10
 	player.coins_changed.emit(player.coins)
 	panel._buttons["W03"].pressed.emit()  # 40 金币 > 10
 	await physics_frame
-	_check("T10_insufficient", player.coins == 10 and not player.owned_weapons.has("W03")
+	_check("T10_insufficient", player.coins == 10 and not player.weapon_stacks.has("W03")
 		and panel._msg.text.contains("金币不足"),
-		"coins=%d owned_W03=%s msg=%s" % [player.coins, player.owned_weapons.has("W03"), panel._msg.text])
+		"coins=%d owned_W03=%s msg=%s" % [player.coins, player.weapon_stacks.has("W03"), panel._msg.text])
 
 	# ---- T11: 不限购（2026-10-29 用户指令）：R04 连买、buff 连买叠加 ----
 	player.coins = 300
@@ -186,6 +204,30 @@ func _run() -> void:
 	_check("T11_no_limit", player.r04_count == 3 and player.buff_stacks["U03"] == 2
 		and player.coins == 300 - 3 * Balance.SHOP_PRICE_R04 - Balance.SHOP_PRICE_BUFF,
 		"r04=%d u03=%d coins=%d" % [player.r04_count, player.buff_stacks["U03"], player.coins])
+
+	# ---- T12: 背包区「装备」切换武器（§4.2，L02-P0-02b）----
+	panel._buttons["W03"].pressed.emit()  # 买 W03 -40 → 260 层0 装备 W03
+	await physics_frame
+	var atk_w03 := player.attack_power()  # 6×(1+0.1×(0+0))=6
+	panel.close()
+	player.equip_weapon("W01")  # 背包区「装备」按钮=直接调 equip（按钮接线在 _refresh_owner）
+	var atk_w01 := player.attack_power()  # 10×(1+0.1×(0+0))=10
+	panel.open(player)
+	_check("T12_equip_switch", player.weapon_id == "W01" and atk_w03 == 6 and atk_w01 == 10,
+		"weapon=%s atk_w03=%d atk_w01=%d" % [player.weapon_id, atk_w03, atk_w01])
+
+	# ---- T13: 卖出（§4.5）：装备中不可卖；武器=40×笔数、buff=30/张、R04=15/个 ----
+	var coins_sell0 := player.coins  # 260
+	var sell_eq: int = player.sell_weapon("W01")  # 装备中 → 0
+	var sold_w02: int = player.sell_weapon("W02")  # 6 笔 → 240
+	var sold_w03: int = player.sell_weapon("W03")  # 1 笔 → 40
+	var sold_u01: int = player.sell_buff("U01")    # 1 张 → 30（T6 买过）
+	var sold_r04: int = player.sell_r04()          # 1 个 → 15（T11 剩 3）
+	var coins_sell1 := player.coins
+	_check("T13_sell", sell_eq == 0 and sold_w02 == 240 and sold_w03 == 40 and sold_u01 == 30 and sold_r04 == 15
+		and coins_sell1 == coins_sell0 + 325 and not player.weapon_stacks.has("W02")
+		and player.weapon_stacks.has("W01") and player.buff_stacks["U01"] == 0 and player.r04_count == 2,
+		"装备卖=%d W02=%d W03=%d U01=%d R04=%d 金币=%d→%d 持有=%s" % [sell_eq, sold_w02, sold_w03, sold_u01, sold_r04, coins_sell0, coins_sell1, player.weapon_stacks.keys()])
 
 	panel.close()
 	if _fail:

@@ -41,7 +41,7 @@ func _run() -> void:
 	for i in 3:
 		await physics_frame
 	var absorbed := r01 == null or (not is_instance_valid(r01)) or r01.is_queued_for_deletion()
-	var ok2: bool = absorbed and player.exp_current == 5 and player.coins == 2
+	var ok2: bool = absorbed and player.exp_current == 5 and player.coins == Balance.PLAYER_START_COINS + 2  # 开局 200（§4.5）+2
 	_check("TEST2 pickup", ok2, "exp=%d coins=%d absorbed=%s" % [player.exp_current, player.coins, absorbed])
 
 	# TEST3: 经验达阈值 20 → 升级：LV2、HP 上限 7、攻击 11、下一级阈值 30（§4.1/§4.5 提案）
@@ -51,7 +51,7 @@ func _run() -> void:
 
 	# TEST4: 溢出累进 + 攻击力随等级成长：再给 35 → LV3（剩余 5）、攻击 12、上限 8
 	player.gain_reward(35, 3)
-	var ok4: bool = player.level == 3 and player.max_hp == 8 and player.attack_power() == 12 and player.exp_current == 5 and player.coins == 5
+	var ok4: bool = player.level == 3 and player.max_hp == 8 and player.attack_power() == 12 and player.exp_current == 5 and player.coins == Balance.PLAYER_START_COINS + 5
 	_check("TEST4 overflow", ok4, "Lv=%d max_hp=%d atk=%d exp=%d coins=%d" % [player.level, player.max_hp, player.attack_power(), player.exp_current, player.coins])
 
 	# TEST5: 升级后攻击扇形携带新攻击力（12）。

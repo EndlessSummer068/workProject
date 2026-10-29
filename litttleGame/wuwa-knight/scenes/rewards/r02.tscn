@@ -1,0 +1,36 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/rewards/r02.gd" id="1_r"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_r"]
+radius = 32.0
+
+[node name="R02" type="Area2D"]
+collision_layer = 64
+collision_mask = 0
+monitoring = false
+script = ExtResource("1_r")
+
+[node name="Shape" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_r")
+
+[node name="Visual" type="Polygon2D" parent="."]
+color = Color(0.729412, 0.482353, 0.180392, 1)
+polygon = PackedVector2Array(-9, -7, 9, -7, 9, 7, -9, 7)
+
+[node name="RLabel" type="Label" parent="."]
+offset_left = -8.0
+offset_top = -8.0
+offset_right = 8.0
+offset_bottom = 8.0
+text = "R"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Hint" type="Label" parent="."]
+offset_left = -56.0
+offset_top = -28.0
+offset_right = 56.0
+offset_bottom = -14.0
+text = "按 E 开启宝箱"
+horizontal_alignment = 1

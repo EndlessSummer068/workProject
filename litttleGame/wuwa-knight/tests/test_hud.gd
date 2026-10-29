@@ -35,7 +35,7 @@ func _run() -> void:
 		and hp_label.get_parsed_text() == "HP 6/6" \
 		and def_label.get_parsed_text() == "防御 %d" % Balance.PLAYER_DEFENSE \
 		and mp_label.get_parsed_text() == "MP 100/100" \
-		and coins_label.text == "金币 0"
+		and coins_label.text == "金币 %d" % Balance.PLAYER_START_COINS  # 开局 200（§4.5，2026-10-29 用户指令）
 	_check("TEST1 initial", ok1, "lv='%s' hp='%s' def='%s' mp='%s' coins='%s'" % [lv_label.get_parsed_text(), hp_label.get_parsed_text(), def_label.get_parsed_text(), mp_label.get_parsed_text(), coins_label.text])
 
 	# TEST2: 玩家受击 → 左上 HP 同步（§8；take_damage(1) 在防御 0/1 下均扣 1=保底输出）
@@ -47,9 +47,9 @@ func _run() -> void:
 	var ok2b: bool = hp_label.text.contains("#c0392b") and mp_label.text.contains("#58c4dd")
 	_check("TEST2b hp_mp_colors", ok2b, "hp='%s' mp='%s'" % [hp_label.text, mp_label.text])
 
-	# TEST3: 金币入账 → 右上金币变化（§8 右上=金币）
+	# TEST3: 金币入账 → 右上金币变化（§8 右上=金币；开局 200 基线，L02-P0-02b）
 	player.gain_reward(0, 2)
-	var ok3: bool = coins_label.text == "金币 2"
+	var ok3: bool = coins_label.text == "金币 %d" % (Balance.PLAYER_START_COINS + 2)
 	_check("TEST3 coin_sync", ok3, "coins='%s'" % coins_label.text)
 
 	# TEST4: 升级 → 等级/HP/防御同步（§8 左上；升级回满血至新上限+防御+1，用户指令 2026-10-29）

@@ -52,6 +52,8 @@ const LEVELUP_EXP_STEP := Balance.LEVELUP_EXP_STEP          # §4.5 每级+10（
 const MP_REGEN: float = Balance.PLAYER_MP_REGEN             # §4.1 MP 自然恢复 1/s（用户指令 2026-10-28）
 const DEFENSE_MIN_DAMAGE := Balance.DEFENSE_MIN_DAMAGE      # §4.1 减伤公式保底 1 点（用户指令 2026-10-28）
 const U01_INVULN_TIME: float = Balance.U01_INVULN_TIME      # §4.6 U01 受击后无敌 1.0s/张（提案）
+const WEAPON_MAX_STACKS := Balance.WEAPON_MAX_STACKS        # §4.2 武器叠层上限 5 层（用户指令）
+const WEAPON_STACK_BONUS: float = Balance.WEAPON_STACK_BONUS  # §4.2 每层攻击+10%（与升级同加区=提案）
 const U02_MP_REGEN_BONUS: float = Balance.U02_MP_REGEN_BONUS  # §4.6 U02 每张 MP 恢复+1/s（提案）
 const U03_MP_ON_HIT := Balance.U03_MP_ON_HIT                # §4.6 U03 每张普攻命中+2 MP（提案）
 const R04_HEAL := Balance.R04_HEAL                          # §4.5 R04 单次回复 2 HP（提案）
@@ -74,9 +76,10 @@ var defense: int = Balance.PLAYER_DEFENSE  # §4.1 防御力初值（升级每�
 var level := 1
 var exp_current := 0
 var exp_next := LEVELUP_BASE_EXP
-var coins := 0
+var coins := Balance.PLAYER_START_COINS               # §4.5 开局金币 200（2026-10-29 用户指令）
 var weapon_id: String = WEAPON_DEFAULT        # §4.2 当前装备武器（L02-P0-02a）
-var owned_weapons: Array[String] = [WEAPON_DEFAULT]  # §4.2 已拥有武器（02a 单持过渡：同款不可再买，02b 叠层）
+var weapon_stacks: Dictionary = {WEAPON_DEFAULT: 0}   # §4.2 已持有武器→叠层数（L02-P0-02b，唯一来源）
+var weapon_buys: Dictionary = {WEAPON_DEFAULT: 1}     # §4.5 已持有武器→累计购买笔数（初始武器视同 1 笔=提案）
 var buff_stacks := {"U01": 0, "U02": 0, "U03": 0}    # §4.6 buff 张数（不限购叠加，2026-10-29）
 var r04_count := 0                            # §4.5 R04 背包数（无上限，2026-10-29）
 var input_blocked := false                    # §8 面板打开期间屏蔽玩家输入（TECH §16）
@@ -98,10 +101,11 @@ func _process(delta: float) -> void:
 		if _hurt_timer <= 0.0:
 			_visual.modulate = Color.WHITE
 
-## 攻击力 = 当前装备武器基础 × (1 + 10%×(等级-1))，四舍五入（§4.2×§4.1 升级成长；叠层+10%/层归 L02-P0-02b）。
+## 攻击力 = 装备武器基础 × (1 + 10%×(武器层数+等级−1))，四舍五入（§4.2 升级与叠层共用加区=提案，L02-P0-02b）。
 func attack_power() -> int:
 	var base: int = WEAPONS[weapon_id]["damage"]
-	return int(round(base * (1.0 + LEVELUP_ATTACK_BONUS * float(level - 1))))
+	var stacks: int = weapon_stacks.get(weapon_id, 0)
+	return int(round(base * (1.0 + WEAPON_STACK_BONUS * float(stacks + level - 1))))
 
 ## 技能 K「湮灭」伤害 = 3×当前攻击力，四舍五入（§4.3，随 §4.1 等级成长）。
 func skill_power() -> int:
@@ -227,13 +231,13 @@ func _on_melee_hit(_body: Node2D) -> void:
 		return
 	gain_mp(buff_stacks["U03"] * U03_MP_ON_HIT)
 
-## 购买结算（§4.5，L02-P0-02a）：扣费+立即生效；金币不足拒绝（panel 已拦截，此处兜底）。
-## 返回是否成交。02a 过渡：武器已持有 → 拒绝（同款叠层归 L02-P0-02b）。
+## 购买结算（§4.5，L02-P0-02b）：扣费+立即生效；金币不足拒绝（panel 已拦截，此处兜底）。
+## 武器：未持有 → 获得+装备（笔数=1）；已持有 → 叠层+1（上限 5 层=§4.2，满层拒绝）。
 func apply_purchase(item_id: String) -> bool:
 	if not SHOP_PRICES.has(item_id):
 		return false
-	if item_id.begins_with("W") and owned_weapons.has(item_id):
-		print("[Player] 已持有 %s，拒绝购买（叠层归 L02-P0-02b）" % item_id)
+	if item_id.begins_with("W") and weapon_stacks.get(item_id, 0) >= WEAPON_MAX_STACKS:
+		print("[Player] %s 叠层已满（%d/%d），拒绝购买" % [item_id, weapon_stacks[item_id], WEAPON_MAX_STACKS])
 		return false
 	var price: int = SHOP_PRICES[item_id]
 	if coins < price:
@@ -249,11 +253,16 @@ func apply_purchase(item_id: String) -> bool:
 			r04_count += 1
 			r04_count_changed.emit(r04_count)
 		_:
-			owned_weapons.append(item_id)  # W01–W04：入背包并立即装备
+			if weapon_stacks.has(item_id):  # §4.2 叠层（L02-P0-02b）
+				weapon_stacks[item_id] += 1
+			else:  # 首购：获得并立即装备
+				weapon_stacks[item_id] = 0
+				weapon_buys[item_id] = 0
+			weapon_buys[item_id] += 1  # 首购与每次叠层均=1 笔（§4.5 卖价公式）
 			weapon_id = item_id
 			weapon_changed.emit(item_id)
-	print("[Player] 购买 %s（-%d 金币）→ 金币=%d 武器=%s U01=%d U02=%d U03=%d R04=%d" % [
-		item_id, price, coins, weapon_id, buff_stacks["U01"], buff_stacks["U02"], buff_stacks["U03"], r04_count])
+	print("[Player] 购买 %s（-%d 金币）→ 金币=%d 武器=%s 层=%s U01=%d U02=%d U03=%d R04=%d" % [
+		item_id, price, coins, weapon_id, weapon_stacks, buff_stacks["U01"], buff_stacks["U02"], buff_stacks["U03"], r04_count])
 	return true
 
 ## 使用 R04（§4.5 H，L02-P0-02a）：满血不消耗；多个按购买先后使用（FIFO 语义=计数递减）。
@@ -269,6 +278,90 @@ func _use_r04() -> void:
 	r04_count_changed.emit(r04_count)
 	hp_changed.emit(hp, max_hp)
 	print("[Player] 使用 R04 → HP=%d/%d（剩余 %d 个）" % [hp, max_hp, r04_count])
+
+## ---- L02-P0-02b：装备切换/卖出/宝箱增益（§4.2/§4.5） ----
+
+## 切换装备武器（§4.2，商店面板「装备」按钮）：须已持有。
+func equip_weapon(id: String) -> bool:
+	if not weapon_stacks.has(id) or id == weapon_id:
+		return false
+	weapon_id = id
+	weapon_changed.emit(id)
+	print("[Player] 装备 %s（层=%d 攻击=%d）" % [id, weapon_stacks[id], attack_power()])
+	return true
+
+## 武器可否再叠层（§4.2 上限 5 层；面板/宝箱共用）。
+func can_stack_weapon(id: String) -> bool:
+	return weapon_stacks.get(id, 0) < WEAPON_MAX_STACKS
+
+## 卖出武器（§4.5）：装备中不可卖（提案：保证至少持有一把）；卖价=40×累计购买笔数。
+## 返回卖价（0=未成交）。
+func sell_weapon(id: String) -> int:
+	if not weapon_stacks.has(id):
+		print("[Player] 未持有 %s，无法卖出" % id)
+		return 0
+	if id == weapon_id:
+		print("[Player] %s 装备中，不可卖出（先切换其他武器）" % id)
+		return 0
+	var price: int = weapon_buys.get(id, 0) * Balance.SELL_PRICE_PER_BUY  # §4.5 卖价公式
+	coins += price
+	coins_changed.emit(coins)
+	weapon_stacks.erase(id)
+	weapon_buys.erase(id)
+	print("[Player] 卖出 %s（+%d 金币，%d 笔）→ 金币=%d 持有=%s" % [id, price, weapon_buys.size() + 1, coins, weapon_stacks.keys()])
+	return price
+
+## 卖出 buff 1 张（§4.5）：卖价 30/张，效果−1 张。返回卖价（0=无库存）。
+func sell_buff(id: String) -> int:
+	if buff_stacks.get(id, 0) <= 0:
+		return 0
+	buff_stacks[id] -= 1
+	coins += Balance.SELL_PRICE_BUFF
+	coins_changed.emit(coins)
+	buff_changed.emit(id, buff_stacks[id])
+	print("[Player] 卖出 %s（+%d）→ 金币=%d 张数=%d" % [id, Balance.SELL_PRICE_BUFF, coins, buff_stacks[id]])
+	return Balance.SELL_PRICE_BUFF
+
+## 卖出 R04 1 个（§4.5）：卖价 15/个。返回卖价（0=无库存）。
+func sell_r04() -> int:
+	if r04_count <= 0:
+		return 0
+	r04_count -= 1
+	coins += Balance.SELL_PRICE_R04
+	coins_changed.emit(coins)
+	r04_count_changed.emit(r04_count)
+	print("[Player] 卖出 R04（+%d）→ 金币=%d 剩余=%d" % [Balance.SELL_PRICE_R04, coins, r04_count])
+	return Balance.SELL_PRICE_R04
+
+## 宝箱武器增益（§4.5，L02-P0-02b）：未持有→获得（免费+装备）；已持有→叠层+1（免费）；
+## 满层→金币+10（提案）。返回实际结果描述（面板提示用）。
+func gain_chest_weapon(id: String) -> String:
+	if not weapon_stacks.has(id):
+		weapon_stacks[id] = 0
+		weapon_buys[id] = 1  # 视同 1 笔（卖价对齐初始武器提案，GAME §4.5）
+		weapon_id = id
+		weapon_changed.emit(id)
+		print("[Player] 宝箱获得 %s 并装备" % id)
+		return "获得 %s" % id
+	if can_stack_weapon(id):
+		weapon_stacks[id] += 1
+		print("[Player] 宝箱 %s 叠层+1（%d/%d）" % [id, weapon_stacks[id], WEAPON_MAX_STACKS])
+		return "%s 叠层+%d" % [id, weapon_stacks[id]]
+	coins += Balance.CHEST_MAX_STACK_COIN
+	coins_changed.emit(coins)
+	print("[Player] %s 已满层 → 金币+%d" % [id, Balance.CHEST_MAX_STACK_COIN])
+	return "金币+%d" % Balance.CHEST_MAX_STACK_COIN
+
+## 宝箱 buff/R04 增益（§4.5）：U01/U02/U03→+1 张、R04→+1（免费，L02-P0-02b）。
+func gain_chest_buff(id: String) -> void:
+	buff_stacks[id] += 1
+	buff_changed.emit(id, buff_stacks[id])
+	print("[Player] 宝箱 %s +1 张（=%d）" % [id, buff_stacks[id]])
+
+func gain_chest_r04() -> void:
+	r04_count += 1
+	r04_count_changed.emit(r04_count)
+	print("[Player] 宝箱 R04 +1（=%d）" % r04_count)
 
 ## 触发技能 K「湮灭」（L01-P2-01，§4.3）：按 K 锁定当前朝向瞬发 90°/100px/3×攻击 直伤；
 ## 冷却 10s 内再按无效（Q1）。朝向锁定：判定实体生成后不再随玩家转向。

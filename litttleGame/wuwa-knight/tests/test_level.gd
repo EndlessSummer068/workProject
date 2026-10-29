@@ -186,7 +186,7 @@ func _run() -> void:
 	var p2: CharacterBody2D = lvl2.get("player") if lvl2 != null else null
 	var ok10c: bool = lvl2 != null and lvl2 != level and p2 != null \
 		and p2.global_position.distance_to(Vector2(104, 680)) < 1.0 \
-		and p2.hp == 6 and p2.level == 1 and p2.coins == 0  # 出生点+升级/金币清空（§9）
+		and p2.hp == 6 and p2.level == 1 and p2.coins == Balance.PLAYER_START_COINS  # 出生点+回开局状态（§9：金币重置为开局 200=2026-10-29）
 	_check("T10c retry_reset", ok10c, "scene_swapped=%s pos=%s hp=%s lv=%s coins=%s" % [lvl2 != level, p2.global_position if p2 != null else "-", p2.hp if p2 != null else "-", p2.level if p2 != null else "-", p2.coins if p2 != null else "-"])
 	# T10d: 区域怪物复活（§6.1：A2–A7 各 2 只 E01）
 	var e01_count := 0

@@ -15,20 +15,3 @@ func _draw() -> void:
 	while y < ARENA_SIZE.y:
 		draw_line(Vector2(0, y), Vector2(ARENA_SIZE.x, y), GRID_COLOR, 1.0)
 		y += TILE
-
-func _ready() -> void:
-	# ---- L02-P0-02a 临时测试代码（用户指令：测试经费 200 金币；验收通过后删除）----
-	# 仅窗口/编辑器手动测试生效；headless 验收测试不受污染（金币由各测试自设）
-	if DisplayServer.get_name() == "headless":
-		return
-	var arena := get_parent()
-	var player := arena.get_node("Player") as Player
-	player.coins = 200
-	player.coins_changed.emit(player.coins)
-	print("[TestArena] 临时：玩家金币已设为 200")
-	var shop := arena.get_node("ShopPoint") as ShopPoint
-	var panel := arena.get_node("ShopPanel") as ShopPanel
-	shop.set_player(player)
-	shop.set_panel(panel)
-	print("[TestArena] 临时：商店 S(200,360) 已接线，靠近按 E 打开面板")
-	# ---- 临时代码结束 ----

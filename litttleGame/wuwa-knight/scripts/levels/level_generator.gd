@@ -22,6 +22,8 @@ const E02_SCENE := preload("res://scenes/enemies/e02.tscn")
 const DOOR_SCENE := preload("res://scenes/levels/door_gate.tscn")
 const SHOP_POINT_SCENE := preload("res://scenes/levels/shop_point.tscn")  # §5 商店 S（L02-P0-02a）
 const SHOP_PANEL_SCENE := preload("res://scenes/ui/shop_panel.tscn")     # §8 商店面板（L02-P0-02a）
+const CHEST_SCENE := preload("res://scenes/rewards/r02.tscn")            # §5 宝箱 R02（L02-P0-02b）
+const CHEST_PANEL_SCENE := preload("res://scenes/ui/chest_panel.tscn")   # §8 宝箱 3 选 1 面板（L02-P0-02b）
 const DEATH_DIALOG := preload("res://scenes/ui/death_dialog.tscn")  # §8 死亡弹窗（L01-P0-08）
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")              # §8 HUD（L01-P1-02）
 const FLOOR_COLOR := Color("2b2b33")  # §7.2 地板
@@ -32,6 +34,8 @@ var player: CharacterBody2D = null
 var doors: Array[DoorGate] = []
 var _shop_point: ShopPoint = null   # 商店 S 实体（§5，L02-P0-02a；地图无 S 时为 null）
 var _shop_panel: ShopPanel = null   # 商店面板（§8，L02-P0-02a）
+var _chests: Array[Chest] = []      # 宝箱 R02 实体（§5，L02-P0-02b）
+var _chest_panel: ChestPanel = null # 宝箱 3 选 1 面板（§8，L02-P0-02b，共享一个）
 var _areas_cleared := {}      # area_id -> bool（§2：出生房/无敌人区域视为已清）
 var _area_enemies := {}       # area_id -> Array[CharacterBody2D]（E01/E02，L02-P0-03 起混编）
 var _grid := {}               # Vector2i(col,row) -> area_id
@@ -143,6 +147,13 @@ func _ready() -> void:
 			_shop_point.set_panel(_shop_panel)
 		else:
 			print("[Level] 本图无 S，商店面板不接线")
+		_chest_panel = CHEST_PANEL_SCENE.instantiate()  # §8 宝箱面板（L02-P0-02b，共享）
+		add_child(_chest_panel)
+		for chest in _chests:
+			chest.set_player(player)
+			chest.set_panel(_chest_panel)
+		if _chests.is_empty():
+			print("[Level] 本图无 R02，宝箱面板不接线")
 	print("[Level] 全地图=%d×%d tile 门=%d 已清=%s" % [x_extent, y_extent, doors.size(), _areas_cleared])
 
 # ---------- 区域 ----------
@@ -176,6 +187,11 @@ func _spawn_entities(area_id: String, data: Dictionary, origin: Vector2i) -> voi
 				_shop_point = SHOP_POINT_SCENE.instantiate()  # §5 商店 S 落位（L02-P0-02a）
 				add_child(_shop_point)
 				_shop_point.global_position = pos
+			"R02":
+				var chest: Chest = CHEST_SCENE.instantiate()  # §5 宝箱落位（L02-P0-02b）
+				add_child(chest)
+				chest.global_position = pos
+				_chests.append(chest)
 			"D":
 				door_cells.append(cell)
 			_:

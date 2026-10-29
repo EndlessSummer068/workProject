@@ -76,7 +76,7 @@ res://
 | `debug_god` / `debug_skip` / `debug_collision` | F1 / F2 / F3 | 见本文 §14 |
 
 - 代码中一律用动作名字符串常量（`Input.is_action_pressed("attack")`），禁止裸键码。
-- `choice_1/2/3`（1/2/3 键）已于 2026-10-29 废弃：宝箱/商店面板改为**鼠标点击卡片**（GAME.md §4.5）；project.godot 中的绑定在 L02-P0-02b 实施时移除。面板关闭=内建 `ui_cancel`（Esc）。
+- `choice_1/2/3`（1/2/3 键）已于 2026-10-29 废弃并从 project.godot 移除（L02-P0-02b）：宝箱/商店面板改为**鼠标点击卡片**（GAME.md §4.5）。面板关闭=内建 `ui_cancel`（Esc）。
 
 ## 7. 碰撞层与掩码（固定，禁止运行时改层）
 

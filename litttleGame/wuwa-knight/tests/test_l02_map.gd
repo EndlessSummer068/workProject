@@ -67,8 +67,8 @@ func _run() -> void:
 	for child in level.get_children():
 		if child is CharacterBody2D and not (child is EnemyE01) and not (child is EnemyE02) and child != level.player:
 			unknown.append(child.name)
-		elif child is Area2D and not (child is ShopPoint):
-			unknown.append(child.name)  # S 实装=ShopPoint 合法；T 若误生成多为 Area2D
+		elif child is Area2D and not (child is ShopPoint) and not (child is Chest):
+			unknown.append(child.name)  # S/R02 已随 L02-P0-02a/02b 实装（ShopPoint/Chest 合法）；T 若误生成多为 Area2D
 	_check("T5 skip_no_nodes", unknown.is_empty(), "未知实体节点=%s（期望空=仅打印跳过）" % [unknown])
 
 	# T6: A8 B02 位置预留（§6.3 A8 中心 B02；解析格位在 A8 房间内部且非边缘）

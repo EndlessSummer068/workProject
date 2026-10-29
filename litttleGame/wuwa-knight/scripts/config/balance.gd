@@ -55,6 +55,7 @@ const ENEMY_BULLET_LIFETIME: float = 5.0       # 敌弹生命周期上限（占�
 const BULLET_POOL_PRELOAD := 64                # TECH §13 池预容量 64
 const BULLET_POOL_MAX := 256                   # TECH §13 池上限 256
 # ---- 商店（§4.5，L02-P0-02a；2026-10-29 用户指令+提案） ----
+const PLAYER_START_COINS := 200            # §4.5 玩家开局金币 200（2026-10-29 用户指令）
 const SHOP_INTERACT_RADIUS: float = 32.0  # §4.5 商店交互半径 2 tile=32px（提案）
 const SHOP_PRICE_W01 := 40                # §4.5 W01 价格 40（2026-10-29 提案：初始武器半价）
 const SHOP_PRICE_W02 := 80                # §4.5 W02 价格 80（L02 提案）
@@ -66,6 +67,14 @@ const U01_INVULN_TIME: float = 1.0        # §4.6 U01 受击后无敌 1.0s/张�
 const U02_MP_REGEN_BONUS: float = 1.0     # §4.6 U02 每张 MP 自然恢复 +1/s（提案）
 const U03_MP_ON_HIT := 2                  # §4.6 U03 每张普攻命中 +2 MP（提案）
 const R04_HEAL := 2                       # §4.5 R04 单次回复 2 HP（提案）
+# ---- 武器叠层/卖出/宝箱（§4.2/§4.5，L02-P0-02b；2026-10-29 用户指令+提案） ----
+const WEAPON_MAX_STACKS := 5              # §4.2 武器叠层上限 5 层（用户指令）
+const WEAPON_STACK_BONUS: float = 0.1     # §4.2 每层攻击 +10%（与升级同加区，提案）
+const SELL_PRICE_PER_BUY := 40            # §4.5 武器卖出=40×累计购买笔数（提案）
+const SELL_PRICE_BUFF := 30               # §4.5 buff 卖出 30/张（提案）
+const SELL_PRICE_R04 := 15                # §4.5 R04 卖出 15/个（提案）
+const CHEST_MAX_STACK_COIN := 10          # §4.5 宝箱满层武器选项补偿金币+10（提案）
+const CHEST_INTERACT_RADIUS: float = 32.0 # §4.5 宝箱交互半径 2 tile=32px（借商店提案）
 const UI_SHOP_OK_COLOR := Color("f5c542") # §8 面板卡可购金（2026-10-29 提案）
 const UI_SHOP_NO_COLOR := Color("4a4a55") # §8 面板卡不可购灰（借 §7.2 墙色）
 # ---- 武器参数（§4.2，L02-P0-02a 装备切换） ----

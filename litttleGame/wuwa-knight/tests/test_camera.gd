@@ -18,14 +18,30 @@ func _check(name: String, ok: bool, detail: String) -> void:
 	_fail = _fail or not ok
 
 ## 传送玩家到 pos，等待钳制目标生效后 reset_smoothing 对齐，返回视野中心。
+## 收敛判定（L02-P0-02b，诊断实证）：reset_smoothing 的效果滞后 2 个物理帧才反映到
+## get_screen_center_position()，滞后窗口内连续两帧读值相同（位移=0）会构成"假平台"，
+## 单帧低位移即返回会拿到 reset 前的中间值（TC0 曾稳定错读 637.5/629.36）→
+## 改为连续 10 帧位移 <0.02px 才算收敛（假平台最多 2-3 帧即被 reset 生效的跳变打断；
+## 真实指数收敛 speed=5.0 下连续 10 帧低位移时距目标 <0.25px，满足 0.5 容差）。
 func _settle(player: CharacterBody2D, cam: Camera2D, pos: Vector2) -> Vector2:
 	player.global_position = pos
 	player.velocity = Vector2.ZERO
 	await physics_frame
 	await physics_frame
 	cam.reset_smoothing()
-	await physics_frame
-	return cam.get_screen_center_position()
+	var center := cam.get_screen_center_position()
+	var stable := 0
+	for i in 120:  # 长尾收敛（指数衰减）实测需 ~85 帧 + 2 帧滞后 + 10 帧稳定窗，上限给足余量
+		await physics_frame
+		var next := cam.get_screen_center_position()
+		if next.distance_to(center) < 0.02:
+			stable += 1
+			if stable >= 10:
+				return next
+		else:
+			stable = 0
+		center = next
+	return center
 
 func _run() -> void:
 	LevelGenerator.section_override = "### 6.2"  # 本测试绑定 L01 布局（§6.2 A1/A2 矩形断言），覆写生成器小节（L02-P0-03）
