@@ -63,6 +63,7 @@ const E05_MOVE_SPEED: float = 60.0            # §4.4 E05 移速 60 px/s（提�
 const E05_TRIGGER_RADIUS: float = 160.0       # §4.4 E05 触发半径 160 px（借 E02 提案，L02-P0-04）
 const E05_ATTACK_RANGE: float = 128.0         # §4.4 E05 射程 128 px（借 E02 提案，L02-P0-04）
 const E05_ATTACK_INTERVAL: float = 1.2        # §4.4 E05 攻击间隔 1.2 s（BUILD_PLAN L02-P0-04 用户指令值；E02 已改 2.5 s，E05 保持 1.2）
+const ENEMY_ROOM_MARGIN: float = 8.0          # §4.4 敌人区域房钳制内边距=敌人半宽 8px（2026-10-29 用户指令：不出区域房，TECH §11）
 const R01_EXP_ELITE := 10                     # §4.5 经验 精英+10（提案 2×小怪，L02-P0-04 重列，demo 中调）
 const R01_COIN_ELITE := 5                     # §4.5 金币 精英+5（Q5）
 const BULLET_POOL_PRELOAD := 64                # TECH §13 池预容量 64

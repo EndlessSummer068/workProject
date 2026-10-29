@@ -29,6 +29,8 @@ var _shoot_timer: float = 0.0
 
 @onready var _detect: Area2D = $DetectArea
 
+var room_rect := Rect2()  # 所在区域房矩形 px 含墙（LevelGenerator 注入，TECH §11；空=test_arena 手摆场景不钳制）
+
 func _ready() -> void:
 	_detect.body_entered.connect(_on_detect_entered)
 	_detect.body_exited.connect(_on_detect_exited)
@@ -56,6 +58,10 @@ func _physics_process(delta: float) -> void:
 				_shoot()
 				_shoot_timer = ATTACK_INTERVAL
 	move_and_slide()
+	if room_rect.size != Vector2.ZERO:  # §4.4 区域房钳制（2026-10-29 用户指令）：任何情况不出所在区域房（TECH §11）
+		global_position = global_position.clamp(
+			room_rect.position + Vector2.ONE * Balance.ENEMY_ROOM_MARGIN,
+			room_rect.end - Vector2.ONE * Balance.ENEMY_ROOM_MARGIN)
 
 ## 受击（玩家近战判定调用）；HP 归零 → 掉落 R01（§4.5）并发出 died 信号后销毁。
 ## call_deferred 理由同 E01：本方法可能在物理回调中执行（物理刷新期禁改场景树）。

@@ -200,6 +200,7 @@ func _spawn_entities(area_id: String, data: Dictionary, origin: Vector2i) -> voi
 				var chest: Chest = CHEST_SCENE.instantiate()  # §5 宝箱落位（L02-P0-02b）
 				add_child(chest)
 				chest.global_position = pos
+				chest.area_cleared_provider = func() -> bool: return _areas_cleared.get(area_id, false)  # §4.5 区域清空才能开（2026-10-29 用户指令）
 				_chests.append(chest)
 			"D":
 				door_cells.append(cell)
@@ -217,6 +218,7 @@ func _spawn_enemy(scene: PackedScene, area_id: String, pos: Vector2) -> void:
 	var enemy: CharacterBody2D = scene.instantiate()
 	add_child(enemy)
 	enemy.global_position = pos
+	enemy.room_rect = _room_rects[area_id]  # §4.4 区域房钳制（2026-10-29 用户指令：不出所在区域房，TECH §11）
 	if not _area_enemies.has(area_id):
 		_area_enemies[area_id] = []
 	_area_enemies[area_id].append(enemy)

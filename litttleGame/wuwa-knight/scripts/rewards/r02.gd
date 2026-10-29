@@ -8,6 +8,7 @@ const INTERACT_RADIUS: float = Balance.CHEST_INTERACT_RADIUS  # §4.5 交互半�
 
 var _player: Player = null
 var _panel: ChestPanel = null
+var area_cleared_provider: Callable = Callable()  # §4.5 区域清空校验（LevelGenerator 注入，2026-10-29 用户指令；空=无校验可开，test_arena 手摆场景）
 
 @onready var _hint: Label = $Hint
 
@@ -26,6 +27,9 @@ func _physics_process(_delta: float) -> void:
 	var near := global_position.distance_to(_player.global_position) <= INTERACT_RADIUS  # §4.5
 	_hint.visible = near and not _panel.visible
 	if near and not _panel.visible and Input.is_action_just_pressed("interact"):  # §3 交互键 E
+		if area_cleared_provider.is_valid() and not area_cleared_provider.call():  # §4.5 区域未清不可开（2026-10-29 用户指令）
+			print("[Chest] %s 所在区域敌人未清空，无法开启" % name)
+			return
 		_panel.open(_player, self)
 
 ## 玩家在面板中完成选择 → 宝箱消耗消失（§4.5：Esc 放弃除外）。

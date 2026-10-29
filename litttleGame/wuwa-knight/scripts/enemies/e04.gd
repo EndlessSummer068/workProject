@@ -27,6 +27,8 @@ var _target: Node2D = null
 @onready var _detect: Area2D = $DetectArea
 @onready var _contact: Area2D = $ContactArea
 
+var room_rect := Rect2()  # 所在区域房矩形 px 含墙（LevelGenerator 注入，TECH §11；空=test_arena 手摆场景不钳制）
+
 func _ready() -> void:
 	$ContactArea/Shape.shape.radius = Balance.E04_CONTACT_RADIUS  # §4.4 接触判定半径 20（借 E01 2026-10-29 用户指令值；tscn 占位值不作数，统一走 balance）
 	_detect.body_entered.connect(_on_detect_entered)
@@ -49,6 +51,10 @@ func _physics_process(delta: float) -> void:
 			else:
 				velocity = Vector2.ZERO
 	move_and_slide()
+	if room_rect.size != Vector2.ZERO:  # §4.4 区域房钳制（2026-10-29 用户指令）：任何情况不出所在区域房（TECH §11）
+		global_position = global_position.clamp(
+			room_rect.position + Vector2.ONE * Balance.ENEMY_ROOM_MARGIN,
+			room_rect.end - Vector2.ONE * Balance.ENEMY_ROOM_MARGIN)
 
 ## 受击（玩家近战判定调用）；HP 归零 → 掉落 R01（§4.5）并发出 died 信号后销毁。
 ## 注意：本方法可能在物理回调（melee_arc body_entered）中执行，生成 R01 必须 call_deferred，
