@@ -14,13 +14,34 @@ signal ultimate_cooldown_changed(remaining: float)
 signal exp_changed(current: int, need: int)
 signal leveled_up(level: int)
 signal coins_changed(total: int)
+signal weapon_changed(weapon_id: String)
+signal buff_changed(buff_id: String, stacks: int)
+signal r04_count_changed(count: int)
 signal died
 
 enum State { IDLE, MOVE }
 
+## 武器参数表（§4.2，L02-P0-02a 装备切换）。
+## W03/W04 远程弹道实体暂未实装（2026-10-29）：攻击暂以近战扇形替代，半径/夹角借 W01（GAME.md 附 7 待定项登记）。
+const WEAPONS := {
+	"W01": {"damage": Balance.WEAPON_W01_ATTACK_DAMAGE, "interval": Balance.WEAPON_W01_ATTACK_INTERVAL,
+		"radius": Balance.WEAPON_W01_ARC_RADIUS, "deg": Balance.WEAPON_W01_ARC_DEG},
+	"W02": {"damage": Balance.WEAPON_W02_ATTACK_DAMAGE, "interval": Balance.WEAPON_W02_ATTACK_INTERVAL,
+		"radius": Balance.WEAPON_W02_ARC_RADIUS, "deg": Balance.WEAPON_W01_ARC_DEG},
+	"W03": {"damage": Balance.WEAPON_W03_ATTACK_DAMAGE, "interval": Balance.WEAPON_W03_ATTACK_INTERVAL,
+		"radius": Balance.WEAPON_W01_ARC_RADIUS, "deg": Balance.WEAPON_W01_ARC_DEG},
+	"W04": {"damage": Balance.WEAPON_W04_ATTACK_DAMAGE, "interval": Balance.WEAPON_W04_ATTACK_INTERVAL,
+		"radius": Balance.WEAPON_W01_ARC_RADIUS, "deg": Balance.WEAPON_W01_ARC_DEG},
+}
+const WEAPON_DEFAULT := "W01"  # §5 初始武器 W01（P01）
+const SHOP_PRICES := {  # §4.5 商店价格表（panel 与购买共用）
+	"W01": Balance.SHOP_PRICE_W01, "W02": Balance.SHOP_PRICE_W02,
+	"W03": Balance.SHOP_PRICE_W03, "W04": Balance.SHOP_PRICE_W04,
+	"U01": Balance.SHOP_PRICE_BUFF, "U02": Balance.SHOP_PRICE_BUFF,
+	"U03": Balance.SHOP_PRICE_BUFF, "R04": Balance.SHOP_PRICE_R04,
+}
+
 const MOVE_SPEED: float = Balance.PLAYER_MOVE_SPEED  # §4.1 玩家移速 160 px/s
-const ATTACK_COOLDOWN: float = Balance.WEAPON_W01_ATTACK_INTERVAL  # §4.2 近战攻击间隔 0.5s
-const ATTACK_BASE: int = Balance.WEAPON_W01_ATTACK_DAMAGE  # §4.2 W01 攻击力 10
 const SKILL_COOLDOWN: float = Balance.SKILL_K_COOLDOWN  # §4.3 K 技能冷却 10s（Q1）
 const SKILL_DAMAGE_MULT: float = Balance.SKILL_K_DAMAGE_MULT  # §4.3 K「湮灭」3×攻击力
 const LEVELUP_HP_BONUS := Balance.LEVELUP_HP_BONUS          # §4.1 升级成长 HP 上限+1
@@ -30,6 +51,10 @@ const LEVELUP_BASE_EXP := Balance.LEVELUP_BASE_EXP          # §4.5 LV2 需 20�
 const LEVELUP_EXP_STEP := Balance.LEVELUP_EXP_STEP          # §4.5 每级+10（提案）
 const MP_REGEN: float = Balance.PLAYER_MP_REGEN             # §4.1 MP 自然恢复 1/s（用户指令 2026-10-28）
 const DEFENSE_MIN_DAMAGE := Balance.DEFENSE_MIN_DAMAGE      # §4.1 减伤公式保底 1 点（用户指令 2026-10-28）
+const U01_INVULN_TIME: float = Balance.U01_INVULN_TIME      # §4.6 U01 受击后无敌 1.0s/张（提案）
+const U02_MP_REGEN_BONUS: float = Balance.U02_MP_REGEN_BONUS  # §4.6 U02 每张 MP 恢复+1/s（提案）
+const U03_MP_ON_HIT := Balance.U03_MP_ON_HIT                # §4.6 U03 每张普攻命中+2 MP（提案）
+const R04_HEAL := Balance.R04_HEAL                          # §4.5 R04 单次回复 2 HP（提案）
 const ULTIMATE_MP_COST := Balance.ULTIMATE_MP_COST          # §4.3 L「湮灭·终式」MP 消耗 60（用户指令 2026-10-28）
 const ULTIMATE_COOLDOWN: float = Balance.ULTIMATE_COOLDOWN  # §4.3 L 冷却 30s（提案）
 const ULTIMATE_DAMAGE_MULT: float = Balance.ULTIMATE_DAMAGE_MULT  # §4.3 L 5×攻击力
@@ -50,6 +75,11 @@ var level := 1
 var exp_current := 0
 var exp_next := LEVELUP_BASE_EXP
 var coins := 0
+var weapon_id: String = WEAPON_DEFAULT        # §4.2 当前装备武器（L02-P0-02a）
+var owned_weapons: Array[String] = [WEAPON_DEFAULT]  # §4.2 已拥有武器（02a 单持过渡：同款不可再买，02b 叠层）
+var buff_stacks := {"U01": 0, "U02": 0, "U03": 0}    # §4.6 buff 张数（不限购叠加，2026-10-29）
+var r04_count := 0                            # §4.5 R04 背包数（无上限，2026-10-29）
+var input_blocked := false                    # §8 面板打开期间屏蔽玩家输入（TECH §16）
 var _state: State = State.IDLE
 var _attack_timer: float = 0.0
 var _skill_timer: float = 0.0
@@ -58,6 +88,7 @@ var _ultimate_timer: float = 0.0
 var _ultimate_cooling := false
 var _hurt_timer: float = 0.0
 var _mp_regen_acc: float = 0.0  # MP 自然恢复小数累积（§4.1 1/s，不足 1 点部分滚存）
+var _invuln_timer: float = 0.0  # §4.6 U01 受击后无敌窗口（stacks×1.0s）
 
 @onready var _visual: Polygon2D = $Visual
 
@@ -67,9 +98,10 @@ func _process(delta: float) -> void:
 		if _hurt_timer <= 0.0:
 			_visual.modulate = Color.WHITE
 
-## 攻击力 = W01 基础 × (1 + 10%×(等级-1))，四舍五入（§4.1 升级成长）。
+## 攻击力 = 当前装备武器基础 × (1 + 10%×(等级-1))，四舍五入（§4.2×§4.1 升级成长；叠层+10%/层归 L02-P0-02b）。
 func attack_power() -> int:
-	return int(round(ATTACK_BASE * (1.0 + LEVELUP_ATTACK_BONUS * float(level - 1))))
+	var base: int = WEAPONS[weapon_id]["damage"]
+	return int(round(base * (1.0 + LEVELUP_ATTACK_BONUS * float(level - 1))))
 
 ## 技能 K「湮灭」伤害 = 3×当前攻击力，四舍五入（§4.3，随 §4.1 等级成长）。
 func skill_power() -> int:
@@ -101,24 +133,27 @@ func gain_mp(amount: int) -> void:
 	print("[Player] 击杀回蓝 +%d → MP=%d/%d" % [amount, mp, max_mp])
 
 ## 受击（§4.1：无敌帧已移除，伤害结算间隔由伤害来源自行控制）。
+## U01 无敌（§4.6，L02-P0-02a）：受击后进入 stacks×1.0s 无敌窗口，窗口内伤害无效。
 ## 减伤公式（§4.1，用户指令 2026-10-28）：实际伤害 = max(1, 原伤害 − 防御力)，保底 1 点。
 func take_damage(amount: int) -> void:
 	if hp <= 0:
+		return
+	if _invuln_timer > 0.0:  # §4.6 U01 无敌窗口
+		print("[Player] U01 无敌中（剩余 %.1fs）伤害无效" % _invuln_timer)
 		return
 	var actual: int = maxi(amount - defense, DEFENSE_MIN_DAMAGE)
 	hp = maxi(hp - actual, 0)
 	_hurt_timer = HURT_FLASH_TIME
 	_visual.modulate = Color(1.0, 0.35, 0.35)
+	if buff_stacks["U01"] > 0:  # §4.6 受击后启动无敌窗口
+		_invuln_timer = buff_stacks["U01"] * U01_INVULN_TIME
 	hp_changed.emit(hp, max_hp)
 	print("[Player] 受击 原始=%d 防御=%d 实际=%d → HP=%d/%d" % [amount, defense, actual, hp, max_hp])
 	if hp == 0:
 		died.emit()  # 死亡重开流程归 L01-P0-08
 
 func _physics_process(delta: float) -> void:
-	var input_dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	velocity = input_dir * MOVE_SPEED
-	if input_dir != Vector2.ZERO:
-		facing = input_dir
+	_invuln_timer = maxf(_invuln_timer - delta, 0.0)  # §4.6 U01 无敌窗口
 	_attack_timer = maxf(_attack_timer - delta, 0.0)
 	_skill_timer = maxf(_skill_timer - delta, 0.0)
 	if _skill_cooling:
@@ -127,12 +162,6 @@ func _physics_process(delta: float) -> void:
 			skill_cooldown_changed.emit(0.0)  # 冷却结束 → HUD 回就绪态
 		else:
 			skill_cooldown_changed.emit(_skill_timer)
-	if Input.is_action_pressed("attack") and _attack_timer <= 0.0:
-		_attack()
-	if Input.is_action_just_pressed("skill"):
-		_use_skill()
-	if Input.is_action_just_pressed("ultimate"):
-		_use_ultimate()
 	_ultimate_timer = maxf(_ultimate_timer - delta, 0.0)
 	if _ultimate_cooling:  # 冷却归零回就绪（TECH §12 ultimate_cooldown_changed）
 		if _ultimate_timer <= 0.0:
@@ -140,13 +169,24 @@ func _physics_process(delta: float) -> void:
 			ultimate_cooldown_changed.emit(0.0)
 		else:
 			ultimate_cooldown_changed.emit(_ultimate_timer)
-	if mp < max_mp:  # §4.1 MP 自然恢复 1/s（用户指令 2026-10-28）
-		_mp_regen_acc += MP_REGEN * delta
-		if _mp_regen_acc >= 1.0:
-			var gain := int(_mp_regen_acc)
-			_mp_regen_acc -= float(gain)
-			mp = mini(mp + gain, max_mp)
-			mp_changed.emit(mp, max_mp)
+	if input_blocked:  # §8/TECH §16：面板打开期间屏蔽移动/攻击/技能/大招/H，冷却与恢复照常
+		velocity = Vector2.ZERO
+		_regen_mp(delta)
+		move_and_slide()
+		return
+	var input_dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	velocity = input_dir * MOVE_SPEED
+	if input_dir != Vector2.ZERO:
+		facing = input_dir
+	if Input.is_action_pressed("attack") and _attack_timer <= 0.0:
+		_attack()
+	if Input.is_action_just_pressed("skill"):
+		_use_skill()
+	if Input.is_action_just_pressed("ultimate"):
+		_use_ultimate()
+	if Input.is_action_just_pressed("use_item"):  # §4.5 R04 使用（H，L02-P0-02a）
+		_use_r04()
+	_regen_mp(delta)
 	move_and_slide()
 	var next := State.MOVE if input_dir != Vector2.ZERO else State.IDLE
 	if next != _state:
@@ -154,16 +194,81 @@ func _physics_process(delta: float) -> void:
 		_state = next
 		state_changed.emit(prev, next)
 
-## 触发一次攻击：冷却计时、发出信号、在朝向生成扇形判定实体（L01-P0-04，§4.2 W01）。
+## MP 恢复（§4.1 自然恢复 1/s + §4.6 U02 每张 +1/s，小数滚存）。
+func _regen_mp(delta: float) -> void:
+	if mp >= max_mp:
+		_mp_regen_acc = 0.0
+		return
+	var rate: float = MP_REGEN + buff_stacks["U02"] * U02_MP_REGEN_BONUS
+	_mp_regen_acc += rate * delta
+	if _mp_regen_acc >= 1.0:
+		var gain := int(_mp_regen_acc)
+		_mp_regen_acc -= float(gain)
+		mp = mini(mp + gain, max_mp)
+		mp_changed.emit(mp, max_mp)
+
+## 触发一次攻击：冷却计时、发出信号、在朝向生成扇形判定实体（L01-P0-04，§4.2）。
+## 武器参数随装备切换生效（L02-P0-02a §4.2）；U03 普攻命中回蓝经 melee_arc.enemy_hit 接线（§4.6）。
 func _attack() -> void:
-	_attack_timer = ATTACK_COOLDOWN
+	var weapon: Dictionary = WEAPONS[weapon_id]
+	_attack_timer = weapon["interval"]
 	attacked.emit(facing)
 	var arc: Area2D = MELEE_ARC_SCENE.instantiate()
-	arc.setup()  # 进树前构建扇形多边形（进树后赋值不生成物理形状）
+	arc.setup(weapon["radius"], weapon["deg"])  # 进树前构建扇形多边形（进树后赋值不生成物理形状）
 	arc.damage = attack_power()  # §4.1 攻击力随等级成长
+	arc.enemy_hit.connect(_on_melee_hit)  # §4.6 U03 命中回蓝
 	get_parent().add_child(arc)
 	arc.global_position = global_position
 	arc.rotation = facing.angle()
+
+## §4.6 U03：普攻命中敌人 +2 MP/张（经 melee_arc.enemy_hit 信号驱动，TECH §12）。
+func _on_melee_hit(_body: Node2D) -> void:
+	if buff_stacks["U03"] <= 0:
+		return
+	gain_mp(buff_stacks["U03"] * U03_MP_ON_HIT)
+
+## 购买结算（§4.5，L02-P0-02a）：扣费+立即生效；金币不足拒绝（panel 已拦截，此处兜底）。
+## 返回是否成交。02a 过渡：武器已持有 → 拒绝（同款叠层归 L02-P0-02b）。
+func apply_purchase(item_id: String) -> bool:
+	if not SHOP_PRICES.has(item_id):
+		return false
+	if item_id.begins_with("W") and owned_weapons.has(item_id):
+		print("[Player] 已持有 %s，拒绝购买（叠层归 L02-P0-02b）" % item_id)
+		return false
+	var price: int = SHOP_PRICES[item_id]
+	if coins < price:
+		print("[Player] 金币不足（%d < %d），拒绝购买 %s" % [coins, price, item_id])
+		return false
+	coins -= price
+	coins_changed.emit(coins)
+	match item_id:
+		"U01", "U02", "U03":
+			buff_stacks[item_id] += 1
+			buff_changed.emit(item_id, buff_stacks[item_id])
+		"R04":
+			r04_count += 1
+			r04_count_changed.emit(r04_count)
+		_:
+			owned_weapons.append(item_id)  # W01–W04：入背包并立即装备
+			weapon_id = item_id
+			weapon_changed.emit(item_id)
+	print("[Player] 购买 %s（-%d 金币）→ 金币=%d 武器=%s U01=%d U02=%d U03=%d R04=%d" % [
+		item_id, price, coins, weapon_id, buff_stacks["U01"], buff_stacks["U02"], buff_stacks["U03"], r04_count])
+	return true
+
+## 使用 R04（§4.5 H，L02-P0-02a）：满血不消耗；多个按购买先后使用（FIFO 语义=计数递减）。
+func _use_r04() -> void:
+	if r04_count <= 0:
+		print("[Player] 无 R04 可用")
+		return
+	if hp >= max_hp:
+		print("[Player] HP 已满，R04 不消耗")
+		return
+	r04_count -= 1
+	hp = mini(hp + R04_HEAL, max_hp)
+	r04_count_changed.emit(r04_count)
+	hp_changed.emit(hp, max_hp)
+	print("[Player] 使用 R04 → HP=%d/%d（剩余 %d 个）" % [hp, max_hp, r04_count])
 
 ## 触发技能 K「湮灭」（L01-P2-01，§4.3）：按 K 锁定当前朝向瞬发 90°/100px/3×攻击 直伤；
 ## 冷却 10s 内再按无效（Q1）。朝向锁定：判定实体生成后不再随玩家转向。

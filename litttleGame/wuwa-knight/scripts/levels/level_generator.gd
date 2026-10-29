@@ -20,6 +20,8 @@ const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const E01_SCENE := preload("res://scenes/enemies/e01.tscn")
 const E02_SCENE := preload("res://scenes/enemies/e02.tscn")
 const DOOR_SCENE := preload("res://scenes/levels/door_gate.tscn")
+const SHOP_POINT_SCENE := preload("res://scenes/levels/shop_point.tscn")  # §5 商店 S（L02-P0-02a）
+const SHOP_PANEL_SCENE := preload("res://scenes/ui/shop_panel.tscn")     # §8 商店面板（L02-P0-02a）
 const DEATH_DIALOG := preload("res://scenes/ui/death_dialog.tscn")  # §8 死亡弹窗（L01-P0-08）
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")              # §8 HUD（L01-P1-02）
 const FLOOR_COLOR := Color("2b2b33")  # §7.2 地板
@@ -28,6 +30,8 @@ const DOOR_COLOR := Color("58c4dd")   # §7.2 门（开）——门格地板色�
 
 var player: CharacterBody2D = null
 var doors: Array[DoorGate] = []
+var _shop_point: ShopPoint = null   # 商店 S 实体（§5，L02-P0-02a；地图无 S 时为 null）
+var _shop_panel: ShopPanel = null   # 商店面板（§8，L02-P0-02a）
 var _areas_cleared := {}      # area_id -> bool（§2：出生房/无敌人区域视为已清）
 var _area_enemies := {}       # area_id -> Array[CharacterBody2D]（E01/E02，L02-P0-03 起混编）
 var _grid := {}               # Vector2i(col,row) -> area_id
@@ -132,6 +136,13 @@ func _ready() -> void:
 		var hud: HUD = HUD_SCENE.instantiate()
 		add_child(hud)
 		hud.bind_player(player)  # §8 HUD 数据绑定（L01-P1-02）
+		_shop_panel = SHOP_PANEL_SCENE.instantiate()  # §8 商店面板（L02-P0-02a，初始隐藏）
+		add_child(_shop_panel)
+		if _shop_point != null:
+			_shop_point.set_player(player)
+			_shop_point.set_panel(_shop_panel)
+		else:
+			print("[Level] 本图无 S，商店面板不接线")
 	print("[Level] 全地图=%d×%d tile 门=%d 已清=%s" % [x_extent, y_extent, doors.size(), _areas_cleared])
 
 # ---------- 区域 ----------
@@ -161,6 +172,10 @@ func _spawn_entities(area_id: String, data: Dictionary, origin: Vector2i) -> voi
 				player.global_position = pos
 			"E01", "E02":
 				_spawn_enemy(E01_SCENE if id == "E01" else E02_SCENE, area_id, pos)
+			"S":
+				_shop_point = SHOP_POINT_SCENE.instantiate()  # §5 商店 S 落位（L02-P0-02a）
+				add_child(_shop_point)
+				_shop_point.global_position = pos
 			"D":
 				door_cells.append(cell)
 			_:

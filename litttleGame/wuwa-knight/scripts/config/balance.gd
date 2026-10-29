@@ -54,3 +54,25 @@ const ENEMY_BULLET_SPEED: float = 200.0        # §4.4 E02 弹速 200 px/s
 const ENEMY_BULLET_LIFETIME: float = 5.0       # 敌弹生命周期上限（占位提案：§4 未定，防泄漏兜底）
 const BULLET_POOL_PRELOAD := 64                # TECH §13 池预容量 64
 const BULLET_POOL_MAX := 256                   # TECH §13 池上限 256
+# ---- 商店（§4.5，L02-P0-02a；2026-10-29 用户指令+提案） ----
+const SHOP_INTERACT_RADIUS: float = 32.0  # §4.5 商店交互半径 2 tile=32px（提案）
+const SHOP_PRICE_W01 := 40                # §4.5 W01 价格 40（2026-10-29 提案：初始武器半价）
+const SHOP_PRICE_W02 := 80                # §4.5 W02 价格 80（L02 提案）
+const SHOP_PRICE_W03 := 40                # §4.5 W03 价格 40（2026-10-29 提案：初始武器半价）
+const SHOP_PRICE_W04 := 80                # §4.5 W04 价格 80（L02 提案）
+const SHOP_PRICE_BUFF := 60               # §4.5 buff U01/U02/U03 价格 60/张（U02/U03=提案）
+const SHOP_PRICE_R04 := 30                # §4.5 R04 价格 30（L02 提案）
+const U01_INVULN_TIME: float = 1.0        # §4.6 U01 受击后无敌 1.0s/张（提案；重复购买+1.0s/张）
+const U02_MP_REGEN_BONUS: float = 1.0     # §4.6 U02 每张 MP 自然恢复 +1/s（提案）
+const U03_MP_ON_HIT := 2                  # §4.6 U03 每张普攻命中 +2 MP（提案）
+const R04_HEAL := 2                       # §4.5 R04 单次回复 2 HP（提案）
+const UI_SHOP_OK_COLOR := Color("f5c542") # §8 面板卡可购金（2026-10-29 提案）
+const UI_SHOP_NO_COLOR := Color("4a4a55") # §8 面板卡不可购灰（借 §7.2 墙色）
+# ---- 武器参数（§4.2，L02-P0-02a 装备切换） ----
+const WEAPON_W02_ATTACK_DAMAGE := 18      # §4.2 W02 攻击 18
+const WEAPON_W02_ATTACK_INTERVAL: float = 0.5  # §4.2 近战间隔 0.5s（Q1）
+const WEAPON_W02_ARC_RADIUS: float = 64.0 # §4.2 W02 半径 64 px
+const WEAPON_W03_ATTACK_DAMAGE := 6       # §4.2 W03 攻击 6
+const WEAPON_W03_ATTACK_INTERVAL: float = 0.4  # §4.2 远程间隔 0.4s（Q1）
+const WEAPON_W04_ATTACK_DAMAGE := 9       # §4.2 W04 攻击 9
+const WEAPON_W04_ATTACK_INTERVAL: float = 0.4  # §4.2 远程间隔 0.4s（Q1）

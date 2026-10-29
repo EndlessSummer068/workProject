@@ -31,9 +31,9 @@ res://
 │   ├── player/        # P01/P02 玩家场景
 │   ├── enemies/       # E01–E05、B01/B02 场景
 │   ├── bullets/       # 子弹场景（近战判定区也在此）
-│   ├── rewards/       # R01 等掉落奖励场景（L01-P0-06 新增）
-│   ├── levels/        # level.tscn 主关卡
-│   └── ui/            # HUD
+│   ├── rewards/       # R01/R02/R04 等奖励实体场景
+│   ├── levels/        # level.tscn 主关卡（door_gate/S 商店/T 传送点等机制实体也在此）
+│   └── ui/            # HUD、死亡弹窗、商店/宝箱面板
 ├── scripts/
 │   ├── config/        # balance.gd（见 §8）
 │   ├── autoload/      # 全局单例（见 §13/§14）
@@ -41,7 +41,7 @@ res://
 │   ├── enemies/
 │   ├── bullets/
 │   ├── rewards/
-│   ├── ui/            # 死亡弹窗等界面脚本（L01-P0-08 新增）
+│   ├── ui/            # 死亡弹窗、商店/宝箱面板脚本（L01-P0-08/L02-P0-02a 新增）
 │   └── levels/        # 区域生成器、相机钳制
 ├── assets/            # 暂空，素材后补
 ├── docs/              # GAME.md、TECH.md（不打包，见 §15）
@@ -71,12 +71,12 @@ res://
 | `attack` | J | §3 普攻 |
 | `skill` | K | §3 技能（L01-P2-01 已实装） |
 | `ultimate` | L | §3 大招（L02-P0-07 实装：需冷却完毕且 MP≥60） |
-| `use_item` | H | §3 回复道具 |
+| `use_item` | H | §3 回复道具（背包无上限，2026-10-29） |
 | `interact` | E | §3 商店/宝箱交互 |
-| `choice_1` / `choice_2` / `choice_3` | 1 / 2 / 3 | §4.5 宝箱 3 选 1 面板选择；放弃走内建 `ui_cancel`（Esc） |
 | `debug_god` / `debug_skip` / `debug_collision` | F1 / F2 / F3 | 见本文 §14 |
 
 - 代码中一律用动作名字符串常量（`Input.is_action_pressed("attack")`），禁止裸键码。
+- `choice_1/2/3`（1/2/3 键）已于 2026-10-29 废弃：宝箱/商店面板改为**鼠标点击卡片**（GAME.md §4.5）；project.godot 中的绑定在 L02-P0-02b 实施时移除。面板关闭=内建 `ui_cancel`（Esc）。
 
 ## 7. 碰撞层与掩码（固定，禁止运行时改层）
 
@@ -160,6 +160,16 @@ func recycle(b: Bullet) -> void           # 归还并隐藏
 - 打包排除：`docs/*`、`tests/*`；`assets/` 为空时随 Godot 默认忽略。
 - 调试符号不随包发布；icon 暂用 Godot 默认。
 
+## 16. 模态面板（商店/宝箱，2026-10-29 新增）
+
+- 面板场景：`scenes/ui/shop_panel.tscn`、`scenes/ui/chest_panel.tscn`（CanvasLayer 根，层级高于 HUD）；脚本放 `scripts/ui/`。
+- 商品卡片=Button（PascalCase 节点名）；购买/卖出/选择一律走按钮 `pressed` 信号，不占用 Input Map；卡片可购/不可购状态与色值照抄 GAME.md §8（#F5C542 / #4A4A55）。
+- 面板打开期间：玩家脚本查询「面板打开」标志后忽略 move_*/attack/skill/ultimate/use_item/interact 输入（不禁用物理帧，敌人/AI 照常，世界侧无敌人=商店区）；鼠标仅面板响应。
+- 关闭=内建 `ui_cancel`（Esc）；面板打开期间再按 E 不重复触发打开。
+- 信号（§12 过去式规范）：`shop_opened`、`shop_closed`、`item_purchased(item_id: String)`、`item_sold(item_id: String, price: int)`、`chest_opened`、`chest_choice_made(item_id: String)`、`chest_closed`。
+- 商店 S / 传送点 T 实体=Area2D，场景放 `scenes/levels/`（与 door_gate 同类，TECH §5）；宝箱 R02 实体放 `scenes/rewards/`。
+- 商品/卖出/叠层/宝箱选项池等玩法数值与规则唯一来源=GAME.md §4.2/§4.5/§4.6；balance.gd 常量注释对应节号（§8 规范）。
+
 ---
 
 ## 附：与 GAME.md 的映射表
@@ -181,3 +191,4 @@ func recycle(b: Bullet) -> void           # 归还并隐藏
 | §13 | 对象池 | §4.1（同屏敌人上限 30）、§4.4（弹幕环）、§4.5（掉落不池化） |
 | §14 | 调试开关 | §4.1（无敌）、§9（重开/跳转流程） |
 | §15 | 导出设置 | §1（目标平台） |
+| §16 | 模态面板（商店/宝箱） | §4.5（商店/宝箱交互与卖出）、§8（面板布局与双色状态） |

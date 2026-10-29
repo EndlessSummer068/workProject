@@ -3,9 +3,14 @@ extends SceneTree
 ## 运行：Godot_v4.7.2 --headless --path <项目> --script res://tests/test_reward.gd
 
 var _fail := false
+var _arc_damages: Array[int] = []  # TEST5 当帧拷贝的 MeleeArc 伤害（自毁 0.1s，存引用会在读取前 freed）
 
 func _initialize() -> void:
 	_run.call_deferred()
+
+func _on_arc_entered(n: Node) -> void:
+	if str(n.name).begins_with("MeleeArc"):
+		_arc_damages.append((n as Area2D).damage)  # 当帧拷贝，避免后续 freed 访问（L02-P0-02a 教训）
 
 func _find_r01(arena: Node) -> Node2D:
 	for c in arena.get_children():
@@ -49,15 +54,16 @@ func _run() -> void:
 	var ok4: bool = player.level == 3 and player.max_hp == 8 and player.attack_power() == 12 and player.exp_current == 5 and player.coins == 5
 	_check("TEST4 overflow", ok4, "Lv=%d max_hp=%d atk=%d exp=%d coins=%d" % [player.level, player.max_hp, player.attack_power(), player.exp_current, player.coins])
 
-	# TEST5: 升级后攻击扇形携带新攻击力（11→实际当前 12）
+	# TEST5: 升级后攻击扇形携带新攻击力（12）。
+	# MeleeArc 0.1s 自毁；headless 下墙钟流逝快于物理帧，跨帧查找会扑空甚至 freed（L02-P0-02a 诊断），
+	# → 用 child_entered_tree 当帧拷贝 damage。
+	_arc_damages.clear()
+	arena.child_entered_tree.connect(_on_arc_entered)
 	Input.action_press("attack")
 	await physics_frame
 	await physics_frame
 	Input.action_release("attack")
-	var arc_damage := -1
-	for c in arena.get_children():
-		if c.name.begins_with("MeleeArc"):
-			arc_damage = c.damage
+	var arc_damage: int = _arc_damages[0] if _arc_damages.size() > 0 else -1
 	var ok5 := arc_damage == 12
 	_check("TEST5 arc_damage_scale", ok5, "arc.damage=%d (期望 12)" % arc_damage)
 

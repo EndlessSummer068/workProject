@@ -61,13 +61,14 @@ func _run() -> void:
 		and int(doc_counts.get("E05", 0)) >= 1 and int(doc_counts.get("R02", 0)) >= 1
 	_check("T4 pending_entities_in_doc", ok4, "文档计数=%s（S/T/B02=1，E04/E05/R02≥1）" % [doc_counts])
 
-	# T5: 未实装实体未生成节点（打印跳过、不报错）：场景无商店/传送点/精英/Boss 节点
+	# T5: 未实装实体未生成节点（打印跳过、不报错）：S 已随 L02-P0-02a 实装（ShopPoint 合法）；
+	# 传送点 T/精英/Boss 仍未实装，场景不应出现其节点
 	var unknown := []
 	for child in level.get_children():
 		if child is CharacterBody2D and not (child is EnemyE01) and not (child is EnemyE02) and child != level.player:
 			unknown.append(child.name)
-		elif child is Area2D:
-			unknown.append(child.name)  # S/T 若误生成多为 Area2D
+		elif child is Area2D and not (child is ShopPoint):
+			unknown.append(child.name)  # S 实装=ShopPoint 合法；T 若误生成多为 Area2D
 	_check("T5 skip_no_nodes", unknown.is_empty(), "未知实体节点=%s（期望空=仅打印跳过）" % [unknown])
 
 	# T6: A8 B02 位置预留（§6.3 A8 中心 B02；解析格位在 A8 房间内部且非边缘）
