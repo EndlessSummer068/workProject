@@ -1,19 +1,11 @@
-extends SceneTree
+extends "res://tests/test_base.gd"
 ## L02-P0-01 E02 远程 AI 与敌弹幕验收测试（BUILD_PLAN.md）：headless 运行。
 ## 运行：Godot_v4.7.2 --headless --path <项目> --script res://tests/test_e02.gd
 ## 覆盖：触发半径→追近（60px/s）、射程内站定射击（间隔 2.5s，2026-10-29 用户指令）、弹速 200、
 ##       命中玩家扣 1 HP、拉开>128 恢复追近、敌弹碰墙消失、BulletPool 池化复用。
 
-var _fail := false
 var _log: FileAccess = null
 
-func _initialize() -> void:
-	_log = FileAccess.open("res://tests/_e02_debug.log", FileAccess.WRITE)
-	# 兜底：任何挂死 30s 后强制退出（退出码 2）
-	create_timer(30.0).timeout.connect(func() -> void:
-		_lprint("TIMEOUT force quit")
-		quit(2))
-	_run.call_deferred()
 
 func _lprint(msg: String) -> void:
 	print(msg)
@@ -27,6 +19,7 @@ func _check(name: String, ok: bool, detail: String) -> void:
 
 func _run() -> void:
 	_lprint("step: begin")
+	_log = FileAccess.open("res://tests/_e02_debug.log", FileAccess.WRITE)  # 原 _initialize 开档职责（看门狗已移交基类 TECH §17）
 	# --script 模式下 autoload 可能未注册：手动挂 BulletPool（E02 发弹依赖）
 	if root.get_node_or_null("BulletPool") == null:
 		var pool_node: Node = (load("res://scripts/autoload/bullet_pool.gd") as GDScript).new()

@@ -45,7 +45,7 @@ res://
 │   └── levels/        # 区域生成器、相机钳制
 ├── assets/            # 暂空，素材后补
 ├── docs/              # GAME.md、TECH.md（不打包，见 §15）
-└── tests/             # demo 阶段不建（预留名，勿占用）
+└── tests/             # headless 验收测试（看门狗基类 test_base.gd，见 §17）
 ```
 
 - 禁止在根目录散落脚本；场景与脚本同实体时脚本放 `scripts/` 对应子目录。
@@ -170,6 +170,14 @@ func recycle(b: Bullet) -> void           # 归还并隐藏
 - 商店 S / 传送点 T 实体=Area2D，场景放 `scenes/levels/`（与 door_gate 同类，TECH §5）；宝箱 R02 实体放 `scenes/rewards/`。
 - 商品/卖出/叠层/宝箱选项池等玩法数值与规则唯一来源=GAME.md §4.2/§4.5/§4.6；balance.gd 常量注释对应节号（§8 规范）。
 
+## 17. headless 测试与看门狗（2026-10-29 新增，用户指令：防测试挂死僵尸进程）
+
+- 全部 headless 测试脚本（`tests/test_*.gd`）必须继承 `tests/test_base.gd` 看门狗基类（`extends "res://tests/test_base.gd"`），禁止裸 `extends SceneTree`。
+- 基类职责：统一持有 `_fail` 与 `_check(name, ok, detail)`（沿用既有约定），并提供看门狗——主循环累计墙钟超过上限（默认 90 s=实测最长套件 3 倍余量，个别套件可覆写 `_watchdog_sec`）自动打印 `RESULT: WATCHDOG TIMEOUT` 并 `quit(1)`。
+- 看门狗实现走 `MainLoop._process` 累计墙钟：`SceneTree.paused=true` 时物理帧停走但 MainLoop 回调仍在（若用物理帧号计时，暂停后看门狗失效）；超时上限宽松，不受「墙钟测物理节奏失真」教训影响（该教训仅适用于紧凑断言，见 §13）。
+- 断言时序规范（延续既有教训）：节奏/冷却类断言用 `Engine.get_physics_frames()` 折算；相机收敛判定须「连续 ≥10 帧位移 <0.02 px」才算收敛（`reset_smoothing` 滞后 2 物理帧，单帧低位移=假平台）。
+- 运行命令可另加 `--quit-after N`（帧数）作调用方兜底，仓库内约定以基类看门狗为准。
+
 ---
 
 ## 附：与 GAME.md 的映射表
@@ -192,3 +200,4 @@ func recycle(b: Bullet) -> void           # 归还并隐藏
 | §14 | 调试开关 | §4.1（无敌）、§9（重开/跳转流程） |
 | §15 | 导出设置 | §1（目标平台） |
 | §16 | 模态面板（商店/宝箱） | §4.5（商店/宝箱交互与卖出）、§8（面板布局与双色状态） |
+| §17 | headless 测试看门狗 | —（工程约定；§6.2/§6.3 布局由测试直接断言） |

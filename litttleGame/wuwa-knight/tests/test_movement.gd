@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/test_base.gd"
 ## L01-P0-02 移动验收测试（BUILD_PLAN.md）：headless 运行。
 ## 运行：Godot_v4.7.2 --headless --path <项目> --script res://tests/test_movement.gd
 ## 输出 TEST1/2/3 结果；全部通过退出码 0，否则 1。
@@ -7,10 +7,7 @@ const SPEED := 160.0        # §4.1 玩家移速 160 px/s
 const TOL := SPEED * 0.05   # ±5%
 const FRAMES := 60          # 60 physics 帧 ≈ 1 秒
 
-var _fail := false
 
-func _initialize() -> void:
-	_run.call_deferred()
 
 func _run() -> void:
 	LevelGenerator.section_override = "### 6.2"  # 本测试跑道坐标绑定 L01 布局（§6.2），覆写生成器小节（L02-P0-03）
@@ -65,7 +62,3 @@ func _run() -> void:
 	else:
 		print("RESULT: ALL PASS")
 		quit(0)
-
-func _check(name: String, ok: bool, detail: String) -> void:
-	print("%s: %s (%s)" % [name, "PASS" if ok else "FAIL", detail])
-	_fail = _fail or not ok

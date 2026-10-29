@@ -1,18 +1,11 @@
-extends SceneTree
+extends "res://tests/test_base.gd"
 ## L02-P0-07 大招 L「湮灭·终式」验收测试（BUILD_PLAN.md）：headless 运行。
 ## 运行：Godot_v4.7.2 --headless --path <项目> --script res://tests/test_ultimate.gd
 ## 覆盖：MP≥60 且冷却完按 L 释放（扣 60、120°/200px/5×伤害扇形、冷却 30s 信号）、
 ##       冷却中/MP 不足无效、HUD 右下 K/L 横排与 L 三态、冲击环 0.3s 消散、真实伤害结算。
 
-var _fail := false
 var _log: FileAccess = null
 
-func _initialize() -> void:
-	_log = FileAccess.open("res://tests/_ult_debug.log", FileAccess.WRITE)
-	create_timer(30.0).timeout.connect(func() -> void:
-		_lprint("TIMEOUT force quit")
-		quit(2))
-	_run.call_deferred()
 
 func _lprint(msg: String) -> void:
 	print(msg)
@@ -32,6 +25,7 @@ func _press_l() -> void:
 	await physics_frame
 
 func _run() -> void:
+	_log = FileAccess.open("res://tests/_ult_debug.log", FileAccess.WRITE)  # 原 _initialize 开档职责（看门狗已移交基类 TECH §17）
 	_lprint("step: begin")
 	var player: Player = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	var hud: CanvasLayer = (load("res://scenes/ui/hud.tscn") as PackedScene).instantiate()

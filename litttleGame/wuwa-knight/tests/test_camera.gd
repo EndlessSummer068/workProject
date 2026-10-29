@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/test_base.gd"
 ## L01-P1-01/01b 验收测试（BUILD_PLAN.md）：相机跟随居中 + 区域边界钳制 + zoom=3 可视 24×13.5 tile
 ## + 门旁放宽纯跟随（01b 用户指令：过门不突跳）。headless 运行。
 ## 规则=GAME.md §8 提案（待定项按提案实现）；zoom/分辨率=§7。
@@ -8,14 +8,8 @@ const HALF_VIEW := Vector2(192.0, 108.0)  # 可视半宽/半高 = 1152/3/2 × 64
 const A1 := Rect2(0, 512, 512, 320)       # A1 房间矩形（格位 (0,1)，§6.2 × §4.7 PITCH）
 const A2 := Rect2(704, 512, 512, 320)     # A2 房间矩形（格位 (1,1)）
 
-var _fail := false
 
-func _initialize() -> void:
-	_run.call_deferred()
 
-func _check(name: String, ok: bool, detail: String) -> void:
-	print("%s: %s (%s)" % [name, "PASS" if ok else "FAIL", detail])
-	_fail = _fail or not ok
 
 ## 传送玩家到 pos，等待钳制目标生效后 reset_smoothing 对齐，返回视野中心。
 ## 收敛判定（L02-P0-02b，诊断实证）：reset_smoothing 的效果滞后 2 个物理帧才反映到
@@ -51,6 +45,12 @@ func _run() -> void:
 		await physics_frame
 	var player: CharacterBody2D = level.get("player")
 	var cam: Camera2D = player.get_node("Camera2D")
+
+	# 精英实装（L02-P0-04）后 §6.2 A2 含 E04/E05：相机测试的传送会误触精英追击/射击，
+	# 叠加伤害可能致死（死亡弹窗+paused 会卡死后续 await）→ 开测先全歼敌人（相机断言不需要活敌）
+	for child in level.get_children():
+		if child is EnemyE01 or child is EnemyE02 or child is EnemyE04 or child is EnemyE05:
+			child.take_damage(999)
 
 	# TC0: 出生对齐：视野中心=出生点的区域钳制中心（出生房偏左 → 中心 x=192）
 	var spawn_expected := Vector2(

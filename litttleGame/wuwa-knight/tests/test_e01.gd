@@ -1,11 +1,8 @@
-extends SceneTree
+extends "res://tests/test_base.gd"
 ## L01-P0-05 E01 基础 AI 验收测试（BUILD_PLAN.md）：headless 运行。
 ## 运行：Godot_v4.7.2 --headless --path <项目> --script res://tests/test_e01.gd
 
-var _fail := false
 
-func _initialize() -> void:
-	_run.call_deferred()
 
 func _run() -> void:
 	var arena: Node = (load("res://scenes/levels/test_arena.tscn") as PackedScene).instantiate()
@@ -69,6 +66,3 @@ func _run() -> void:
 		print("RESULT: ALL PASS")
 		quit(0)
 
-func _check(name: String, ok: bool, detail: String) -> void:
-	print("%s: %s (%s)" % [name, "PASS" if ok else "FAIL", detail])
-	_fail = _fail or not ok

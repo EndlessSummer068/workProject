@@ -1,13 +1,10 @@
-extends SceneTree
+extends "res://tests/test_base.gd"
 ## L01-P1-02 HUD 验收测试（BUILD_PLAN.md）：headless 运行。
 ## L01-P2-01 起含 K 冷却图标真实化验收（TEST5/TEST7/TEST8，§8）。
 ## L02-P0-06 起左上改为四项竖排：等级/HP/防御/MP（§8 用户指令 2026-10-28），TEST1–4/6 同步更新。
 ## 运行：Godot_v4.7.2 --headless --path <项目> --script res://tests/test_hud.gd
 
-var _fail := false
 
-func _initialize() -> void:
-	_run.call_deferred()
 
 func _run() -> void:
 	var hud_scene: PackedScene = load("res://scenes/ui/hud.tscn")
@@ -101,6 +98,3 @@ func _run() -> void:
 		print("RESULT: ALL PASS")
 		quit(0)
 
-func _check(name: String, ok: bool, detail: String) -> void:
-	print("%s: %s (%s)" % [name, "PASS" if ok else "FAIL", detail])
-	_fail = _fail or not ok

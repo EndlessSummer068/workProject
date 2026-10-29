@@ -1,15 +1,9 @@
-extends SceneTree
+extends "res://tests/test_base.gd"
 ## L01-P0-07c/07d/07e/08 验收测试（BUILD_PLAN.md）：A1–A8+走廊+房门机制+门常开+未清区域封禁+死亡流程。headless 运行。
 ## 运行：Start-Process Godot --headless --path <项目> --script res://tests/test_level.gd
 
-var _fail := false
 
-func _initialize() -> void:
-	_run.call_deferred()
 
-func _check(name: String, ok: bool, detail: String) -> void:
-	print("%s: %s (%s)" % [name, "PASS" if ok else "FAIL", detail])
-	_fail = _fail or not ok
 
 func _count_entities(data: Dictionary) -> Dictionary:
 	var counts := {}
@@ -101,6 +95,7 @@ func _run() -> void:
 	var shape: CollisionShape2D = g_a1e.get_node("Body/Shape")
 	var ok7d: bool = g_a1e.open and shape.disabled
 	_check("T7d a1e_stays_open", ok7d, "open=%s no_collision=%s (期望 常开)" % [g_a1e.open, shape.disabled])
+	player.hp = Balance.PLAYER_MAX_HP  # 精英实装（L02-P0-04）后 §6.2 A2 含 E04/E05：重置血量防后续窗口被精英伤害叠加致死（本测试不断言过程血量）
 
 	# T8: A2 北门锁定 → 靠近不开、碰撞阻挡（§2：清怪前四周门锁）
 	var g_a2n := _gate(level, "N|A2|A3")
@@ -111,20 +106,24 @@ func _run() -> void:
 	await _push("move_up", 1 * 60)
 	var ok8b: bool = player.global_position.y >= 532.0  # 门体 512..528+半宽 → 被阻挡
 	_check("T8b a2n_blocks", ok8b, "y=%.2f (期望 ≥532 被阻挡)" % player.global_position.y)
+	player.hp = Balance.PLAYER_MAX_HP  # 同 T7d 后：重置血量防精英伤害叠加致死（L02-P0-04）
 
 	# T9: 清空 A2（击杀其全部敌人）→ 区域已清 → 北门解锁 → 靠近自动开 → 穿门
-	# （L02-P0-01 起 E02 已实装：§6.2 战斗区敌人=E01×2+E02×2，清怪范围含 E02；验收语义不变=清空才解锁）
+	# （L02-P0-01 起 E02 已实装；L02-P0-04 起 E04/E05 已实装：§6.2 战斗区敌人=E01×2+E02×2+E04×1+E05×1，
+	# 清怪范围含全部已实装类型；验收语义不变=清空才解锁）
 	var a2_killed := 0
 	for c in level.get_children():
 		var s: Script = c.get_script() if c is Node2D else null
-		if s != null and (str(s.resource_path).ends_with("e01.gd") or str(s.resource_path).ends_with("e02.gd")) and is_instance_valid(c) and c.hp > 0:
+		if s != null and (str(s.resource_path).ends_with("e01.gd") or str(s.resource_path).ends_with("e02.gd")
+			or str(s.resource_path).ends_with("e04.gd") or str(s.resource_path).ends_with("e05.gd")) \
+			and is_instance_valid(c) and c.hp > 0:
 			var p: Vector2 = c.global_position
 			if p.x >= 704.0 and p.x <= 1216.0 and p.y >= 512.0 and p.y <= 832.0:  # A2 范围（origin 704,512）
 				c.take_damage(999)
 				a2_killed += 1
 	await physics_frame
 	await physics_frame
-	var ok9a: bool = a2_killed == 4 and g_a2n.unlocked \
+	var ok9a: bool = a2_killed == 6 and g_a2n.unlocked \
 		and _gate(level, "E|A2|A5").unlocked and _gate(level, "W|A5|A2").unlocked  # 自身侧门解锁+W|A5|A2 区域外可进入（§2 L01-P0-07e）
 	_check("T9a a2_clear_unlock", ok9a, "killed=%d a2n=%s a2e=%s a5w=%s" % [a2_killed, g_a2n.unlocked, _gate(level, "E|A2|A5").unlocked, _gate(level, "W|A5|A2").unlocked])
 	player.global_position = Vector2(960, 546)

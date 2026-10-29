@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/test_base.gd"
 ## L02-P0-02a 商店 S 与金币消费逻辑 验收测试（BUILD_PLAN.md）：headless 运行。
 ## 运行：Godot_v4.7.2 --headless --path <项目> --script res://tests/test_shop.gd
 ## 覆盖：E 开面板/输入屏蔽/再按 E 不重复/Esc 关闭/R04 购买+H 使用/U01 无敌/U02 回蓝
@@ -6,10 +6,7 @@ extends SceneTree
 
 const FRAME_WAIT := 2  # 输入注入后的等待帧数
 
-var _fail := false
 
-func _initialize() -> void:
-	_run.call_deferred()
 
 func _run() -> void:
 	# ---- 场景搭建：先摆位再 add_child（防出生重叠假触发，L02-P0-01 教训）----
@@ -237,6 +234,3 @@ func _run() -> void:
 		print("RESULT: ALL PASS")
 		quit(0)
 
-func _check(name: String, ok: bool, detail: String) -> void:
-	print("%s: %s (%s)" % [name, "PASS" if ok else "FAIL", detail])
-	_fail = _fail or not ok

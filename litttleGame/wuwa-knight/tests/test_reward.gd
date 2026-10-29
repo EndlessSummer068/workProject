@@ -1,12 +1,9 @@
-extends SceneTree
+extends "res://tests/test_base.gd"
 ## L01-P0-06 奖励与升级验收测试（BUILD_PLAN.md）：headless 运行。
 ## 运行：Godot_v4.7.2 --headless --path <项目> --script res://tests/test_reward.gd
 
-var _fail := false
 var _arc_damages: Array[int] = []  # TEST5 当帧拷贝的 MeleeArc 伤害（自毁 0.1s，存引用会在读取前 freed）
 
-func _initialize() -> void:
-	_run.call_deferred()
 
 func _on_arc_entered(n: Node) -> void:
 	if str(n.name).begins_with("MeleeArc"):
@@ -74,6 +71,3 @@ func _run() -> void:
 		print("RESULT: ALL PASS")
 		quit(0)
 
-func _check(name: String, ok: bool, detail: String) -> void:
-	print("%s: %s (%s)" % [name, "PASS" if ok else "FAIL", detail])
-	_fail = _fail or not ok

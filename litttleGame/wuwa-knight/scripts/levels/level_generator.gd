@@ -19,6 +19,8 @@ static var section_override := ""
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const E01_SCENE := preload("res://scenes/enemies/e01.tscn")
 const E02_SCENE := preload("res://scenes/enemies/e02.tscn")
+const E04_SCENE := preload("res://scenes/enemies/e04.tscn")  # §4.4 精英（L02-P0-04）
+const E05_SCENE := preload("res://scenes/enemies/e05.tscn")  # §4.4 精英（L02-P0-04）
 const DOOR_SCENE := preload("res://scenes/levels/door_gate.tscn")
 const SHOP_POINT_SCENE := preload("res://scenes/levels/shop_point.tscn")  # §5 商店 S（L02-P0-02a）
 const SHOP_PANEL_SCENE := preload("res://scenes/ui/shop_panel.tscn")     # §8 商店面板（L02-P0-02a）
@@ -181,8 +183,15 @@ func _spawn_entities(area_id: String, data: Dictionary, origin: Vector2i) -> voi
 				player = PLAYER_SCENE.instantiate()
 				add_child(player)
 				player.global_position = pos
-			"E01", "E02":
-				_spawn_enemy(E01_SCENE if id == "E01" else E02_SCENE, area_id, pos)
+			"E01", "E02", "E04", "E05":
+				var enemy_scene: PackedScene = E01_SCENE
+				if id == "E02":
+					enemy_scene = E02_SCENE
+				elif id == "E04":
+					enemy_scene = E04_SCENE
+				elif id == "E05":
+					enemy_scene = E05_SCENE
+				_spawn_enemy(enemy_scene, area_id, pos)
 			"S":
 				_shop_point = SHOP_POINT_SCENE.instantiate()  # §5 商店 S 落位（L02-P0-02a）
 				add_child(_shop_point)
@@ -203,7 +212,7 @@ func _spawn_entities(area_id: String, data: Dictionary, origin: Vector2i) -> voi
 	_build_doors(area_id, door_cells, origin)
 
 ## 敌人生成+区域注册（§2 封禁/已清判定）+ 死亡接线（§4.1 击杀回蓝、区域清空）。
-## E01/E02 共用（L02-P0-03）；回蓝值由敌人 mp_gain 字段区分（均为小怪+3）。
+## E01/E02/E04/E05 共用（L02-P0-03/P0-04）；回蓝值由敌人 mp_gain 字段区分（小怪+3、精英+6）。
 func _spawn_enemy(scene: PackedScene, area_id: String, pos: Vector2) -> void:
 	var enemy: CharacterBody2D = scene.instantiate()
 	add_child(enemy)
@@ -270,7 +279,7 @@ func _edge_key(a: String, b: String) -> String:
 	return "%s-%s" % [mini(a.hash(), b.hash()), maxi(a.hash(), b.hash())]
 
 ## 击杀回蓝（§4.1，用户指令 2026-10-28）：敌人死亡信号 → 玩家 MP 增加；
-## 回蓝值由敌人自身 mp_gain 字段决定（E01=小怪+3；精英/Boss 随 L02-P0-04/05 接入）。
+## 回蓝值由敌人自身 mp_gain 字段决定（E01/E02=小怪+3；E04/E05=精英+6；Boss 随 L02-P0-05 接入）。
 func _on_enemy_mp_gain(enemy: CharacterBody2D) -> void:
 	if player != null and player.has_method("gain_mp"):
 		player.gain_mp(enemy.mp_gain)

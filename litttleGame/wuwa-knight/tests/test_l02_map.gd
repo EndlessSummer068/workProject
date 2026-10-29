@@ -1,17 +1,11 @@
-extends SceneTree
+extends "res://tests/test_base.gd"
 ## L02-P0-03 L02 地图解析与拼接加载验收测试（BUILD_PLAN.md）：headless 运行。
 ## 运行：Godot_v4.7.2 --headless --path <项目> --script res://tests/test_l02_map.gd
 ## 覆盖：§6.3 八区解析、全图 208×52、E01/E02 生成与文档计数一致、
 ##       S/T/E04/E05/B02/R02 打印跳过不报错、A8 B02 位置预留、门窗封禁机制（进未清区封门→清怪解锁）。
 
-var _fail := false
 
-func _initialize() -> void:
-	_run.call_deferred()
 
-func _check(name: String, ok: bool, detail: String) -> void:
-	print("%s: %s (%s)" % [name, "PASS" if ok else "FAIL", detail])
-	_fail = _fail or not ok
 
 func _run() -> void:
 	# 默认读 DOC_SECTION=§6.3（不设 override；L01 回归测试才覆写为 §6.2，见 test_level）
@@ -43,29 +37,36 @@ func _run() -> void:
 	var ok2: bool = cam.limit_right == 208 * 16 and cam.limit_bottom == 52 * 16
 	_check("T2 map_208x52", ok2, "limit_right=%d(期望3328) limit_bottom=%d(期望832)" % [cam.limit_right, cam.limit_bottom])
 
-	# T3: 场景敌人与文档计数一致（E01/E02 全部生成；类型正确）
+	# T3: 场景敌人与文档计数一致（E01/E02 小兵 + E04/E05 精英，L02-P0-04；类型正确）
 	var e01_nodes: Array = []
 	var e02_nodes: Array = []
+	var e04_nodes: Array = []
+	var e05_nodes: Array = []
 	for child in level.get_children():
 		if child is EnemyE01:
 			e01_nodes.append(child)
 		elif child is EnemyE02:
 			e02_nodes.append(child)
+		elif child is EnemyE04:
+			e04_nodes.append(child)
+		elif child is EnemyE05:
+			e05_nodes.append(child)
 	var ok3: bool = e01_nodes.size() == int(doc_counts.get("E01", 0)) and e02_nodes.size() == int(doc_counts.get("E02", 0)) \
-		and e01_nodes.size() >= 8 and e02_nodes.size() >= 8
-	_check("T3 enemies_spawned", ok3, "场景 E01=%d/E02=%d vs 文档 E01=%d/E02=%d（§6.3 各区小兵）" % [e01_nodes.size(), e02_nodes.size(), doc_counts.get("E01", 0), doc_counts.get("E02", 0)])
+		and e04_nodes.size() == int(doc_counts.get("E04", 0)) and e05_nodes.size() == int(doc_counts.get("E05", 0)) \
+		and e01_nodes.size() >= 8 and e02_nodes.size() >= 8 and e04_nodes.size() >= 5 and e05_nodes.size() >= 5
+	_check("T3 enemies_spawned", ok3, "场景 E01=%d/E02=%d/E04=%d/E05=%d vs 文档 %d/%d/%d/%d（§6.3 小兵+精英）" % [e01_nodes.size(), e02_nodes.size(), e04_nodes.size(), e05_nodes.size(), doc_counts.get("E01", 0), doc_counts.get("E02", 0), doc_counts.get("E04", 0), doc_counts.get("E05", 0)])
 
-	# T4: 未实装实体在文档中存在（S/T/E04/E05/B02/R02 由 §6.3 布局声明）
+	# T4: 未实装实体在文档中存在（S/T/B02/R02/E03 由 §6.3 布局声明；E04/E05 已随 L02-P0-04 实装移出）
 	var ok4: bool = int(doc_counts.get("S", 0)) == 1 and int(doc_counts.get("T", 0)) == 1 \
-		and int(doc_counts.get("B02", 0)) == 1 and int(doc_counts.get("E04", 0)) >= 1 \
-		and int(doc_counts.get("E05", 0)) >= 1 and int(doc_counts.get("R02", 0)) >= 1
-	_check("T4 pending_entities_in_doc", ok4, "文档计数=%s（S/T/B02=1，E04/E05/R02≥1）" % [doc_counts])
+		and int(doc_counts.get("B02", 0)) == 1 and int(doc_counts.get("R02", 0)) >= 1
+	_check("T4 pending_entities_in_doc", ok4, "文档计数=%s（S/T/B02=1，R02≥1）" % [doc_counts])
 
 	# T5: 未实装实体未生成节点（打印跳过、不报错）：S 已随 L02-P0-02a 实装（ShopPoint 合法）；
-	# 传送点 T/精英/Boss 仍未实装，场景不应出现其节点
+	# 传送点 T/Boss B02/自爆虫 E03 仍未实装，场景不应出现其节点
 	var unknown := []
 	for child in level.get_children():
-		if child is CharacterBody2D and not (child is EnemyE01) and not (child is EnemyE02) and child != level.player:
+		if child is CharacterBody2D and not (child is EnemyE01) and not (child is EnemyE02) \
+			and not (child is EnemyE04) and not (child is EnemyE05) and child != level.player:
 			unknown.append(child.name)
 		elif child is Area2D and not (child is ShopPoint) and not (child is Chest):
 			unknown.append(child.name)  # S/R02 已随 L02-P0-02a/02b 实装（ShopPoint/Chest 合法）；T 若误生成多为 Area2D

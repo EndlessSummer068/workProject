@@ -1,18 +1,12 @@
-extends SceneTree
+extends "res://tests/test_base.gd"
 ## L02-P0-02b 宝箱 3 选 1 鼠标化 验收测试（BUILD_PLAN.md）：headless 运行。
 ## 运行：Godot_v4.7.2 --headless --path <项目> --script res://tests/test_chest.gd
 ## 覆盖：E 开面板/武器获得与叠层/满层金币+10/U01、R04 卡/Esc 保留/选择后消失/输入屏蔽。
 
 const FRAME_WAIT := 2
 
-var _fail := false
 
-func _initialize() -> void:
-	_run.call_deferred()
 
-func _check(name: String, ok: bool, detail: String) -> void:
-	print("%s: %s (%s)" % [name, "PASS" if ok else "FAIL", detail])
-	_fail = _fail or not ok
 
 func _spawn_chest() -> Chest:
 	var chest: Chest = (load("res://scenes/rewards/r02.tscn") as PackedScene).instantiate()
