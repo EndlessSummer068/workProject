@@ -60,21 +60,25 @@ func _run() -> void:
 		and e01_nodes.size() >= 8 and e02_nodes.size() >= 8 and e04_nodes.size() >= 5 and e05_nodes.size() >= 5
 	_check("T3 enemies_spawned", ok3, "场景 E01=%d/E02=%d/E04=%d/E05=%d/B02=%d vs 文档 %d/%d/%d/%d/%d（§6.3 小兵+精英+小 Boss）" % [e01_nodes.size(), e02_nodes.size(), e04_nodes.size(), e05_nodes.size(), b02_nodes.size(), doc_counts.get("E01", 0), doc_counts.get("E02", 0), doc_counts.get("E04", 0), doc_counts.get("E05", 0), doc_counts.get("B02", 0)])
 
-	# T4: 未实装实体在文档中存在（S/T/R02 由 §6.3 布局声明；E04/E05/B02 已随 L02-P0-04/05 实装移出）
+	# T4: 全部 §6.3 布局实体已在文档声明（S/T/R02；E04/E05/B02 已随 L02-P0-04/05 实装移出待办）
 	var ok4: bool = int(doc_counts.get("S", 0)) == 1 and int(doc_counts.get("T", 0)) == 1 \
 		and int(doc_counts.get("R02", 0)) >= 1
-	_check("T4 pending_entities_in_doc", ok4, "文档计数=%s（S/T=1，R02≥1）" % [doc_counts])
+	_check("T4 entities_in_doc", ok4, "文档计数=%s（S/T=1，R02≥1）" % [doc_counts])
 
-	# T5: 未实装实体未生成节点（打印跳过、不报错）：S/R02/B02 已实装（ShopPoint/Chest/EnemyB02 合法）；
-	# 传送点 T/自爆虫 E03 仍未实装，场景不应出现其节点
+	# T5: 已实装实体类型正确、无未知节点（S/R02/T/B02 均实装：
+	# ShopPoint/Chest/TeleportPoint/EnemyB02 合法）；自爆虫 E03 仍未实装，不应生成节点
 	var unknown := []
+	var teleports: Array = []
 	for child in level.get_children():
 		if child is CharacterBody2D and not (child is EnemyE01) and not (child is EnemyE02) \
 			and not (child is EnemyE04) and not (child is EnemyE05) and not (child is EnemyB02) and child != level.player:
 			unknown.append(child.name)
+		elif child is TeleportPoint:
+			teleports.append(child)
 		elif child is Area2D and not (child is ShopPoint) and not (child is Chest):
-			unknown.append(child.name)  # S/R02 已随 L02-P0-02a/02b 实装（ShopPoint/Chest 合法）；T 若误生成多为 Area2D
-	_check("T5 skip_no_nodes", unknown.is_empty(), "未知实体节点=%s（期望空=仅打印跳过）" % [unknown])
+			unknown.append(child.name)  # S/R02/T 已实装（ShopPoint/Chest/TeleportPoint 合法）；E03 未实装
+	_check("T5 impl_types", unknown.is_empty() and teleports.size() == 1,
+		"未知实体节点=%s 传送点=%d（期望空/1）" % [unknown, teleports.size()])
 
 	# T6: A8 B02 落位（§6.3 A8 中心 B02）：文档格位与实装节点均在 A8 房间内部（非边缘）
 	var a8_rect: Rect2 = level._room_rects["A8"]

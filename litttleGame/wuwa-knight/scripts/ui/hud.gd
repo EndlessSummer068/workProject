@@ -11,9 +11,12 @@ const K_READY_COLOR := Balance.SKILL_K_COLOR  # 就绪高亮 #F2D57E（§7.2 P01
 const L_READY_COLOR := Balance.ULTIMATE_COLOR  # L 就绪高亮 #9B59D0（§8，2026-10-29 用户指令：与 K 金黄区分，同大招特效紫）
 const K_COOLDOWN_GRAY := Color("4a4a55")      # 冷却中灰块（借 §7.2 墙色，L01-P1-02 提案）
 const ULT_MP_COST := Balance.ULTIMATE_MP_COST  # §4.3 L 缺 MP 判定阈值 60
+const BUFF_IDS := ["U01", "U02", "U03"]        # §4.6 buff 图标排（L02-P1-02）
+const BUFF_ICON_COLOR := Balance.ULTIMATE_COLOR  # §8 buff 图标紫 #9B59D0（借大招特效紫）
 
 var _player: Player = null  # 绑定的玩家（读初始值/升级/缺 MP 判定时回读字段用）
 var _ult_remaining: float = 0.0  # L 冷却剩余（s），由 ultimate_cooldown_changed 驱动
+var _buff_icons := {}  # buff_id -> ColorRect（底部中间图标，§8，L02-P1-02）
 
 @onready var _lv_label: RichTextLabel = $LvLabel
 @onready var _hp_label: RichTextLabel = $HPLabel
@@ -26,10 +29,15 @@ var _ult_remaining: float = 0.0  # L 冷却剩余（s），由 ultimate_cooldown
 @onready var _l_label: Label = $LSlot/LLabel
 @onready var _ult_hint: Label = $UltHint
 @onready var _clear_label: Label = $ClearLabel
+@onready var _buff_bar: HBoxContainer = $BuffBar
 
 func _ready() -> void:
 	_set_k_ready()  # 初始就绪态（§8：就绪=「K」+#F2D57E 高亮）
 	_set_l_ready()
+	for id: String in BUFF_IDS:  # §8 底部中间 buff 图标排（L02-P1-02）
+		var icon := _make_buff_icon(id)
+		_buff_bar.add_child(icon)
+		_buff_icons[id] = icon
 
 ## 绑定玩家：读取初始值并连接信号（由 LevelGenerator 调用）。
 func bind_player(p: Player) -> void:
@@ -45,6 +53,9 @@ func bind_player(p: Player) -> void:
 	p.leveled_up.connect(_on_player_leveled_up)
 	p.skill_cooldown_changed.connect(_on_player_skill_cooldown)
 	p.ultimate_cooldown_changed.connect(_on_player_ult_cooldown)
+	p.buff_changed.connect(_on_player_buff_changed)  # §8 buff 图标排（L02-P1-02）
+	for id: String in BUFF_IDS:
+		_refresh_buff_icon(id, p.buff_stacks.get(id, 0))
 	print("[HUD] 绑定玩家 HP=%d/%d Lv=%d 防御=%d MP=%d/%d 金币=%d" % [p.hp, p.max_hp, p.level, p.defense, p.mp, p.max_mp, p.coins])
 
 func _on_player_hp_changed(current: int, max_hp: int) -> void:
@@ -121,3 +132,30 @@ func _set_l_ready() -> void:
 func show_clear_banner(text: String) -> void:
 	_clear_label.text = text
 	_clear_label.visible = true
+
+## §8 底部中间 buff 图标（L02-P1-02）：紫色方块+编号+「×N」，张数 0 不显示。
+func _make_buff_icon(id: String) -> Control:
+	var rect := ColorRect.new()
+	rect.name = "Buff%s" % id
+	rect.color = BUFF_ICON_COLOR
+	rect.custom_minimum_size = Vector2(56, 26)
+	rect.visible = false
+	var label := Label.new()
+	label.name = "Label"
+	label.text = "%s ×0" % id
+	label.add_theme_font_size_override("font_size", 12)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	rect.add_child(label)
+	return rect
+
+func _on_player_buff_changed(buff_id: String, stacks: int) -> void:
+	_refresh_buff_icon(buff_id, stacks)
+
+func _refresh_buff_icon(id: String, stacks: int) -> void:
+	if not _buff_icons.has(id):
+		return
+	var icon: ColorRect = _buff_icons[id]
+	icon.visible = stacks > 0
+	(icon.get_node("Label") as Label).text = "%s ×%d" % [id, stacks]

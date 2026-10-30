@@ -24,6 +24,7 @@ const E05_SCENE := preload("res://scenes/enemies/e05.tscn")  # §4.4 精英（L0
 const B02_SCENE := preload("res://scenes/enemies/b02.tscn")  # §4.4 小 Boss（L02-P0-05）
 const DOOR_SCENE := preload("res://scenes/levels/door_gate.tscn")
 const SHOP_POINT_SCENE := preload("res://scenes/levels/shop_point.tscn")  # §5 商店 S（L02-P0-02a）
+const TELEPORT_SCENE := preload("res://scenes/levels/teleport_point.tscn")  # §5 传送点 T（L02-P1-01）
 const SHOP_PANEL_SCENE := preload("res://scenes/ui/shop_panel.tscn")     # §8 商店面板（L02-P0-02a）
 const CHEST_SCENE := preload("res://scenes/rewards/r02.tscn")            # §5 宝箱 R02（L02-P0-02b）
 const CHEST_PANEL_SCENE := preload("res://scenes/ui/chest_panel.tscn")   # §8 宝箱 3 选 1 面板（L02-P0-02b）
@@ -36,6 +37,11 @@ const DOOR_COLOR := Color("58c4dd")   # §7.2 门（开）——门格地板色�
 var player: CharacterBody2D = null
 var doors: Array[DoorGate] = []
 var _shop_point: ShopPoint = null   # 商店 S 实体（§5，L02-P0-02a；地图无 S 时为 null）
+var _shop_area := ""                # 商店所在区域 id（§4.5 传送点记录用，L02-P1-01）
+var _teleport: TeleportPoint = null # 传送点 T 实体（§5，L02-P1-01；地图无 T 时为 null）
+var _return_point := Vector2.ZERO   # 传送点回传落点（§4.5，L02-P1-01）
+var _has_return := false            # 是否已记录进店前区域（L02-P1-01）
+var _last_area := ""                # 最近一次离开的区域 id（进店前区域判定，L02-P1-01）
 var _shop_panel: ShopPanel = null   # 商店面板（§8，L02-P0-02a）
 var _chests: Array[Chest] = []      # 宝箱 R02 实体（§5，L02-P0-02b）
 var _chest_panel: ChestPanel = null # 宝箱 3 选 1 面板（§8，L02-P0-02b，共享一个）
@@ -59,7 +65,12 @@ func _physics_process(_delta: float) -> void:
 	var area := _resolve_player_area()
 	if area == _player_area:
 		return
+	var prev := _player_area
 	_player_area = area
+	if prev != "":
+		_last_area = prev  # 最近一次离开的区域（进店前区域判定，L02-P1-01）
+	if area != "" and area == _shop_area and _last_area != _shop_area and _last_area != "":
+		_record_return_point(_last_area)  # §4.5：每次进入商店区刷新回传记录（L02-P1-01）
 	if area != "" and not _areas_cleared.get(area, false):
 		_entry_gates[area] = _nearest_gate(area)  # 进入未清区域：入口门=进入瞬间最近的门
 	_refresh_doors()
@@ -81,6 +92,31 @@ func _nearest_gate(area_id: String) -> DoorGate:
 			best_d = d
 			best = gate
 	return best
+
+## 传送点回传记录（§4.5，L02-P1-01）：进入商店区瞬间，取「来路区域」离玩家最近的房门，
+## 沿该房门→区域中心方向内推 40 px 作为落点（每次进入刷新）。
+func _record_return_point(from_area: String) -> void:
+	var gate := _nearest_gate(from_area)
+	if gate == null:
+		return
+	var rect: Rect2 = _room_rects[from_area]
+	var dir := (rect.get_center() - gate.global_position).normalized()
+	_return_point = gate.global_position + dir * Balance.TELEPORT_RETURN_INSET
+	_has_return = true
+	print("[Level] 传送记录：进店前区域=%s 门=%s → 落点=%s" % [from_area, gate.global_position, _return_point])
+
+## 传送回进店前区域门内侧（§4.5，L02-P1-01）：无记录则不传送并打印提示。
+func _teleport_back() -> bool:
+	if not _has_return:
+		print("[Level] 无进店记录，传送点不可用")
+		return false
+	player.global_position = _return_point
+	player.velocity = Vector2.ZERO
+	var cam: CameraClamp = player.get_node("Camera2D")
+	cam.reset_smoothing()  # 传送后相机直接对齐（TECH §8 相机平滑）
+	_player_area = ""  # 下一物理帧重算区域/门状态
+	print("[Level] 传送点 → 落点=%s" % _return_point)
+	return true
 
 func _refresh_doors() -> void:
 	## 门状态规则（L01-P0-07e，§2）：已清区域→永久解锁常开；未清区域内→仅入口门可通行；
@@ -153,6 +189,11 @@ func _ready() -> void:
 			_shop_point.set_panel(_shop_panel)
 		else:
 			print("[Level] 本图无 S，商店面板不接线")
+		if _teleport != null:  # §5 传送点 T（L02-P1-01）
+			_teleport.set_player(player)
+			_teleport.set_on_use(_teleport_back)
+		else:
+			print("[Level] 本图无 T，传送点不接线")
 		_chest_panel = CHEST_PANEL_SCENE.instantiate()  # §8 宝箱面板（L02-P0-02b，共享）
 		add_child(_chest_panel)
 		for chest in _chests:
@@ -204,6 +245,11 @@ func _spawn_entities(area_id: String, data: Dictionary, origin: Vector2i) -> voi
 				_shop_point = SHOP_POINT_SCENE.instantiate()  # §5 商店 S 落位（L02-P0-02a）
 				add_child(_shop_point)
 				_shop_point.global_position = pos
+				_shop_area = area_id  # §4.5 传送点记录商店区（L02-P1-01）
+			"T":
+				_teleport = TELEPORT_SCENE.instantiate()  # §5 传送点 T 落位（L02-P1-01）
+				add_child(_teleport)
+				_teleport.global_position = pos
 			"R02":
 				var chest: Chest = CHEST_SCENE.instantiate()  # §5 宝箱落位（L02-P0-02b）
 				add_child(chest)

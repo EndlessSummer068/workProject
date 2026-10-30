@@ -1,7 +1,8 @@
 extends "res://tests/test_base.gd"
 ## L02-P0-02b 宝箱 3 选 1 鼠标化 验收测试（BUILD_PLAN.md）：headless 运行。
 ## 运行：Godot_v4.7.2 --headless --path <项目> --script res://tests/test_chest.gd
-## 覆盖：E 开面板/武器获得与叠层/满层金币+10/U01、R04 卡/Esc 保留/选择后消失/输入屏蔽。
+## 覆盖：E 开面板/武器获得与叠层/满层金币+10/buff 槽随机与刷新/R04 卡/Esc 保留/选择后消失/输入屏蔽。
+## L02-P1-02 追加：宝箱刷新按钮（重抽 buff 槽，不重复、免费不限次）+ 3 槽（武器/buff/R04）。
 
 const FRAME_WAIT := 2
 
@@ -53,7 +54,7 @@ func _run() -> void:
 		"visible=%s blocked=%s opened=%d dx=%.3f" % [panel.visible, player.input_blocked, opened.size(), player.global_position.x - x_before])
 
 	# ---- T2: 点武器卡 → 获得 W02（免费+装备，金币不变）+宝箱消失（§4.5）----
-	panel._buttons["W02"].pressed.emit()
+	panel._buttons["weapon"].pressed.emit()
 	await physics_frame
 	_check("T2_chest_weapon_get", player.weapon_id == "W02" and player.weapon_stacks["W02"] == 0
 		and player.weapon_buys["W02"] == 1 and player.coins == Balance.PLAYER_START_COINS
@@ -75,23 +76,37 @@ func _run() -> void:
 
 	# ---- T4: 已持有武器 → 叠层+1（免费）（§4.5）----
 	panel.open(player, chest2)
-	panel._buttons["W02"].pressed.emit()
+	panel._buttons["weapon"].pressed.emit()
 	await physics_frame
 	_check("T4_chest_stack", player.weapon_stacks["W02"] == 1 and player.coins == Balance.PLAYER_START_COINS,
 		"层=%d 金币=%d" % [player.weapon_stacks["W02"], player.coins])
 
-	# ---- T5: U01 卡 → +1 张（§4.5）----
+	# ---- T5: 刷新按钮 → 重抽 buff 槽（不与当前重复、免费不限次、发 chest_rerolled）----
+	var rerolled: Array = []
+	panel.chest_rerolled.connect(func(id: String): rerolled.append(id))
 	var chest3 := _spawn_chest()
 	panel.open(player, chest3)
-	panel._buttons["U01"].pressed.emit()
+	var buff_before: String = panel._buff_id
+	var changes: Array = []
+	for i in 6:  # 连续刷新多次，每次都必须与上一次不同
+		var prev: String = panel._buff_id
+		panel._reroll.pressed.emit()
+		changes.append(panel._buff_id != prev and panel._buff_id in ChestPanel.BUFF_POOL)
+	_check("T5_reroll", buff_before in ChestPanel.BUFF_POOL and rerolled.size() == 6 and changes.all(func(ok: bool) -> bool: return ok)
+		and player.coins == Balance.PLAYER_START_COINS,
+		"初=%s 刷新=%d 每次变化=%s 金币=%d" % [buff_before, rerolled.size(), changes, player.coins])
+
+	# ---- T5b: 点 buff 卡 → 当前 buff 槽 +1 张（§4.5/§4.6）----
+	var buff_id: String = panel._buff_id
+	panel._buttons["buff"].pressed.emit()
 	await physics_frame
-	_check("T5_chest_u01", player.buff_stacks["U01"] == 1 and not is_instance_valid(chest3),
-		"U01=%d" % player.buff_stacks["U01"])
+	_check("T5b_chest_buff", player.buff_stacks[buff_id] == 1 and not is_instance_valid(chest3),
+		"%s=%d" % [buff_id, player.buff_stacks[buff_id]])
 
 	# ---- T6: R04 卡 → +1（§4.5）----
 	var chest4 := _spawn_chest()
 	panel.open(player, chest4)
-	panel._buttons["R04"].pressed.emit()
+	panel._buttons["r04"].pressed.emit()
 	await physics_frame
 	_check("T6_chest_r04", player.r04_count == 1 and not is_instance_valid(chest4),
 		"R04=%d" % player.r04_count)
@@ -101,7 +116,7 @@ func _run() -> void:
 	var chest5 := _spawn_chest()
 	panel.open(player, chest5)
 	var coins_before := player.coins
-	panel._buttons["W02"].pressed.emit()
+	panel._buttons["weapon"].pressed.emit()
 	await physics_frame
 	_check("T7_chest_full_stack_coin", player.coins == coins_before + Balance.CHEST_MAX_STACK_COIN
 		and player.weapon_stacks["W02"] == Balance.WEAPON_MAX_STACKS,

@@ -103,8 +103,12 @@ func _process(delta: float) -> void:
 
 ## 攻击力 = 装备武器基础 × (1 + 10%×(武器层数+等级−1))，四舍五入（§4.2 升级与叠层共用加区=提案，L02-P0-02b）。
 func attack_power() -> int:
-	var base: int = WEAPONS[weapon_id]["damage"]
-	var stacks: int = weapon_stacks.get(weapon_id, 0)
+	return attack_power_for(weapon_id)
+
+## 指定武器的攻击力（背包卡展示用，L02-P1-02；公式与 attack_power 同源）。
+func attack_power_for(id: String) -> int:
+	var base: int = WEAPONS[id]["damage"]
+	var stacks: int = weapon_stacks.get(id, 0)
 	return int(round(base * (1.0 + WEAPON_STACK_BONUS * float(stacks + level - 1))))
 
 ## 技能 K「湮灭」伤害 = 3×当前攻击力，四舍五入（§4.3，随 §4.1 等级成长）。

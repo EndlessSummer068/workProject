@@ -133,51 +133,75 @@ func _refresh_card(item: Dictionary) -> void:
 	var no_color: Color = Balance.UI_SHOP_NO_COLOR    # §8 不可购灰
 	btn.add_theme_color_override("font_color", no_color if (full or not affordable) else ok_color)
 
-## 背包区重建（§4.5 下半部）：已拥有武器（装备/卖出）+ buff/回复道具（卖出）。
+## 背包区重建（§4.5 下半部，2026-10-30 用户指令：改卡片式）：已拥有武器（装备/卖出）+
+## buff/回复道具（卖出）各为一张卡；装备中武器=灰卡禁卖、当前装备=金色描边。
 ## 全清重建（按钮回调=输入事件路径，非物理回调，可直接操作树）。
 func _refresh_owner() -> void:
 	for c in _owner_grid.get_children():
+		_owner_grid.remove_child(c)  # 先摘再排队释放：避免同名新旧卡冲突（Godot 自动改名）
 		c.queue_free()
-	# 武器行（§4.2 装备切换 + §4.5 卖出）
+	# 武器卡（§4.2 装备切换 + §4.5 卖出）
 	for id: String in _player.weapon_stacks.keys():
 		var equipped: bool = id == _player.weapon_id
-		var label := Label.new()
 		var sell_price: int = _player.weapon_buys.get(id, 0) * Balance.SELL_PRICE_PER_BUY  # §4.5 卖价
-		label.text = "%s 层%d/%d%s（卖 %d）" % [id, _player.weapon_stacks[id], Balance.WEAPON_MAX_STACKS,
-			" 装备中" if equipped else "", sell_price]
-		_owner_grid.add_child(label)
-		if not equipped:
-			var eq := Button.new()
-			eq.text = "装备"
-			eq.pressed.connect(_on_owner_action.bind("weapon", id, false))
-			_owner_grid.add_child(eq)
-		var sell := Button.new()
-		sell.text = "卖出"
-		sell.disabled = equipped  # §4.5 装备中不可卖
-		sell.pressed.connect(_on_owner_action.bind("weapon", id, true))
-		_owner_grid.add_child(sell)
-	# buff 行（§4.5 卖出 30/张）
+		var actions: Array = []
+		if equipped:
+			actions.append({"text": "装备中", "disabled": true})
+		else:
+			actions.append({"text": "装备", "cb": _on_owner_action.bind("weapon", id, false)})
+		actions.append({"text": "卖出 %d" % sell_price, "cb": _on_owner_action.bind("weapon", id, true), "disabled": equipped})
+		_make_card("Card%s" % id, "%s\n层%d/%d\n攻击 %d" % [_item_name(id), _player.weapon_stacks[id],
+			Balance.WEAPON_MAX_STACKS, _player.attack_power_for(id)], actions, equipped)
+	# buff 卡（§4.5 卖出 30/张）
 	for id: String in _player.buff_stacks.keys():
 		if _player.buff_stacks[id] <= 0:
 			continue
-		var label := Label.new()
-		label.text = "%s×%d（卖 %d/张）" % [id, _player.buff_stacks[id], Balance.SELL_PRICE_BUFF]
-		_owner_grid.add_child(label)
-		var sell := Button.new()
-		sell.text = "卖出"
-		sell.pressed.connect(_on_owner_action.bind("buff", id, true))
-		_owner_grid.add_child(sell)
-	# R04 行（§4.5 卖出 15/个）
+		var actions2: Array = [{"text": "卖出 %d" % Balance.SELL_PRICE_BUFF, "cb": _on_owner_action.bind("buff", id, true)}]
+		_make_card("Card%s" % id, "%s ×%d\n%s" % [_item_name(id), _player.buff_stacks[id], _desc(id)], actions2, false)
+	# R04 卡（§4.5 卖出 15/个）
 	if _player.r04_count > 0:
-		var label := Label.new()
-		label.text = "R04×%d（卖 %d/个）" % [_player.r04_count, Balance.SELL_PRICE_R04]
-		_owner_grid.add_child(label)
-		var sell := Button.new()
-		sell.text = "卖出"
-		sell.pressed.connect(_on_owner_action.bind("r04", "R04", true))
-		_owner_grid.add_child(sell)
+		var actions3: Array = [{"text": "卖出 %d" % Balance.SELL_PRICE_R04, "cb": _on_owner_action.bind("r04", "R04", true)}]
+		_make_card("CardR04", "回复道具 ×%d\n按 H 回 %d HP" % [_player.r04_count, Balance.R04_HEAL], actions3, false)
+
+## 生成一张背包卡（TECH §16：PanelContainer+StyleBoxFlat，底色 #23232B、装备中描边 #F5C542）。
+func _make_card(card_name: String, body: String, actions: Array, equipped: bool) -> void:
+	var card := PanelContainer.new()
+	card.name = card_name
+	card.custom_minimum_size = Vector2(150, 104)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Balance.UI_CARD_BG_COLOR
+	style.set_corner_radius_all(4)
+	style.set_border_width_all(2)
+	style.border_color = Balance.UI_SHOP_OK_COLOR if equipped else Balance.UI_SHOP_NO_COLOR
+	style.set_content_margin_all(6)
+	card.add_theme_stylebox_override("panel", style)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 4)
+	var label := Label.new()
+	label.text = body
+	label.add_theme_font_size_override("font_size", 12)
+	box.add_child(label)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	for act: Dictionary in actions:
+		var btn := Button.new()
+		btn.text = act["text"]
+		btn.add_theme_font_size_override("font_size", 12)
+		btn.disabled = act.get("disabled", false)
+		if act.has("cb"):
+			btn.pressed.connect(act["cb"])
+		row.add_child(btn)
+	box.add_child(row)
+	card.add_child(box)
+	_owner_grid.add_child(card)
 
 ## 效果简述（数值引 §4.2/§4.6/§4.5；W03/W04 远程弹道暂以近战替代=GAME 附 7 待定）。
+func _item_name(id: String) -> String:
+	for item: Dictionary in ITEMS:
+		if item["id"] == id:
+			return item["name"]
+	return id
+
 func _desc(id: String) -> String:
 	match id:
 		"W01", "W02", "W03", "W04":

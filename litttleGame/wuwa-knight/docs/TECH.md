@@ -168,8 +168,11 @@ func recycle(b: Bullet) -> void           # 归还并隐藏
 - 商品卡片=Button（PascalCase 节点名）；购买/卖出/选择一律走按钮 `pressed` 信号，不占用 Input Map；卡片可购/不可购状态与色值照抄 GAME.md §8（#F5C542 / #4A4A55）。
 - 面板打开期间：玩家脚本查询「面板打开」标志后忽略 move_*/attack/skill/ultimate/use_item/interact 输入（不禁用物理帧，敌人/AI 照常，世界侧无敌人=商店区）；鼠标仅面板响应。
 - 关闭=内建 `ui_cancel`（Esc）；面板打开期间再按 E 不重复触发打开。
-- 信号（§12 过去式规范）：`shop_opened`、`shop_closed`、`item_purchased(item_id: String)`、`item_sold(item_id: String, price: int)`、`chest_opened`、`chest_choice_made(item_id: String)`、`chest_closed`。
+- 信号（§12 过去式规范）：`shop_opened`、`shop_closed`、`item_purchased(item_id: String)`、`item_sold(item_id: String, price: int)`、`chest_opened`、`chest_choice_made(item_id: String)`、`chest_rerolled(buff_id: String)`、`chest_closed`。
 - 商店 S / 传送点 T 实体=Area2D，场景放 `scenes/levels/`（与 door_gate 同类，TECH §5）；宝箱 R02 实体放 `scenes/rewards/`。
+- 背包区卡片化（2026-10-30 用户指令，L02-P1-02）：已拥有物品卡=`PanelContainer`+`StyleBoxFlat`（底色 #23232B、装备中描边 #F5C542），卡内 VBox=名称/层数/卖价 Label + 动作 HBox（「装备」「卖出」Button）；卡片在 `_refresh()` 时整体重建（按钮回调属输入事件路径，可直接操作树）。
+- 宝箱刷新按钮：`Button`（节点名 `Reroll`，文案「刷新」）→ 重抽 buff 槽（U01/U02/U03 中随机，且不与当前重复），免费不限次；每次重抽发 `chest_rerolled`。
+- 传送点 T：交互与 S 同模式（距离 ≤2 tile + `interact`），`player.input_blocked` 时忽略；回传目标由 LevelGenerator 计算（进店前区域 + 该区域最近房门向房中心内推 40 px），传送后 `velocity=Vector2.ZERO` 并 `camera.reset_smoothing()`。
 - 商品/卖出/叠层/宝箱选项池等玩法数值与规则唯一来源=GAME.md §4.2/§4.5/§4.6；balance.gd 常量注释对应节号（§8 规范）。
 
 ## 17. headless 测试与看门狗（2026-10-29 新增，用户指令：防测试挂死僵尸进程）

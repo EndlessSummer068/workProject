@@ -91,6 +91,28 @@ func _run() -> void:
 	var ok8: bool = k_slot.color.is_equal_approx(k_ready) and k_label.text == "K"
 	_check("TEST8 k_ready_again", ok8, "color=%s text='%s' (期望回就绪)" % [k_slot.color, k_label.text])
 
+	# TEST9: buff 图标排（§8 底部中间，L02-P1-02）：生效张数>0 才显示，文案含编号+张数
+	var buff_bar: HBoxContainer = hud.get_node("BuffBar")
+	var u02_icon: ColorRect = buff_bar.get_node("BuffU02")
+	var ok9a: bool = not u02_icon.visible and not buff_bar.get_node("BuffU01").visible
+	player.gain_chest_buff("U02")
+	player.gain_chest_buff("U02")
+	var ok9b: bool = u02_icon.visible and (u02_icon.get_node("Label") as Label).text == "U02 ×2" \
+		and not buff_bar.get_node("BuffU03").visible
+	player.sell_buff("U02")
+	player.sell_buff("U02")
+	var ok9c: bool = not u02_icon.visible
+	_check("TEST9 buff_icons", ok9a and ok9b and ok9c,
+		"初始隐藏=%s 显示=%s 文本='%s' 归零隐藏=%s" % [ok9a, ok9b,
+		(u02_icon.get_node("Label") as Label).text, ok9c])
+
+	# TEST10: 通关占位提示（§9，L02-P0-05）：默认隐藏，调用后居中显示
+	var clear_label: Label = hud.get_node("ClearLabel")
+	var ok10a: bool = not clear_label.visible
+	hud.show_clear_banner("L02 通关")
+	_check("TEST10 clear_banner", ok10a and clear_label.visible and clear_label.text == "L02 通关",
+		"初始隐藏=%s 显示=%s 文本='%s'" % [ok10a, clear_label.visible, clear_label.text])
+
 	if _fail:
 		print("RESULT: FAILED")
 		quit(1)

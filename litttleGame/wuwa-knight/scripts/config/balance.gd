@@ -108,8 +108,11 @@ const SELL_PRICE_BUFF := 30               # §4.5 buff 卖出 30/张（提案）
 const SELL_PRICE_R04 := 15                # §4.5 R04 卖出 15/个（提案）
 const CHEST_MAX_STACK_COIN := 10          # §4.5 宝箱满层武器选项补偿金币+10（提案）
 const CHEST_INTERACT_RADIUS: float = 32.0 # §4.5 宝箱交互半径 2 tile=32px（借商店提案）
+const TELEPORT_INTERACT_RADIUS: float = 32.0 # §4.5 传送点 T 交互半径 2 tile=32px（2026-10-30 提案，L02-P1-01）
+const TELEPORT_RETURN_INSET: float = 40.0    # §4.5 回传落点=房门向区域中心内推 40px（2026-10-30 提案，L02-P1-01）
 const UI_SHOP_OK_COLOR := Color("f5c542") # §8 面板卡可购金（2026-10-29 提案）
 const UI_SHOP_NO_COLOR := Color("4a4a55") # §8 面板卡不可购灰（借 §7.2 墙色）
+const UI_CARD_BG_COLOR := Color("23232b") # §8 背包卡底色（2026-10-30 提案，L02-P1-02）
 # ---- 武器参数（§4.2，L02-P0-02a 装备切换） ----
 const WEAPON_W02_ATTACK_DAMAGE := 18      # §4.2 W02 攻击 18
 const WEAPON_W02_ATTACK_INTERVAL: float = 0.5  # §4.2 近战间隔 0.5s（Q1）
