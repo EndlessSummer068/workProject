@@ -76,7 +76,7 @@ var defense: int = Balance.PLAYER_DEFENSE  # §4.1 防御力初值（升级每�
 var level := 1
 var exp_current := 0
 var exp_next := LEVELUP_BASE_EXP
-var coins := Balance.PLAYER_START_COINS               # §4.5 开局金币 200（2026-10-29 用户指令）
+var coins := Balance.PLAYER_START_COINS               # §4.5 开局金币 10（2026-10-30 用户指令）
 var weapon_id: String = WEAPON_DEFAULT        # §4.2 当前装备武器（L02-P0-02a）
 var weapon_stacks: Dictionary = {WEAPON_DEFAULT: 0}   # §4.2 已持有武器→叠层数（L02-P0-02b，唯一来源）
 var weapon_buys: Dictionary = {WEAPON_DEFAULT: 1}     # §4.5 已持有武器→累计购买笔数（初始武器视同 1 笔=提案）

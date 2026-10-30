@@ -29,9 +29,9 @@ func _run() -> void:
 		if str(n.name).begins_with("R01"):
 			drops.append(n))
 
-	# ---- T1: 出生属性（§4.4 HP 120 / 移速 90；§4.1 小 Boss 回蓝 +15；初始 P1）----
+	# ---- T1: 出生属性（§4.4 HP 240 / 移速 90；§4.1 小 Boss 回蓝 +15；初始 P1）----
 	_check("T1_stats", boss.hp == Balance.B02_MAX_HP and boss.mp_gain == Balance.MP_GAIN_BOSS and boss.phase == 1,
-		"hp=%d mp_gain=%d phase=%d (期望 120/+15/1)" % [boss.hp, boss.mp_gain, boss.phase])
+		"hp=%d mp_gain=%d phase=%d (期望 240/+15/1)" % [boss.hp, boss.mp_gain, boss.phase])
 
 	# ---- T2: P1 追击移速 90±5%（§4.4 提案；触发半径 160 借 E02）----
 	var x0 := boss.global_position.x
@@ -50,7 +50,7 @@ func _run() -> void:
 	_check("T3_p1_single_shot", shots.size() == 2 and shots[0] == 1 and shots[1] == 1 and player.hp == hp3_0 - 2,
 		"shots=%s hp=%d→%d (期望 [1,1]、每发扣 1)" % [shots, hp3_0, player.hp])
 
-	# ---- T4: HP≤60（50%）一次性切 P2（§4.4；重复受伤不再发 phase_changed）----
+	# ---- T4: HP≤120（50%）一次性切 P2（§4.4；重复受伤不再发 phase_changed）----
 	boss.global_position = Vector2(3000, 0)  # 拉出触发范围（target 清空，防 P2 冲撞干扰断言）
 	for i in 2:
 		await physics_frame
@@ -58,11 +58,11 @@ func _run() -> void:
 	var state_events: Array = []
 	boss.phase_changed.connect(func(p: int) -> void: phase_events.append(p))
 	boss.state_changed.connect(func(from: int, to: int) -> void: state_events.append([from, to]))
-	boss.take_damage(60)  # 120→60：越阈值
-	boss.take_damage(10)  # 60→50：已 P2，不应再发信号
+	boss.take_damage(120)  # 240→120：越阈值
+	boss.take_damage(10)   # 120→110：已 P2，不应再发信号
 	await physics_frame
-	_check("T4_phase_switch_once", boss.phase == 2 and boss.hp == 50 and phase_events == [2] and state_events.size() == 1,
-		"phase=%d hp=%d phase_events=%s state_events=%s (期望 2/50/[2]/1 次)" % [boss.phase, boss.hp, phase_events, state_events])
+	_check("T4_phase_switch_once", boss.phase == 2 and boss.hp == 110 and phase_events == [2] and state_events.size() == 1,
+		"phase=%d hp=%d phase_events=%s state_events=%s (期望 2/110/[2]/1 次)" % [boss.phase, boss.hp, phase_events, state_events])
 
 	# ---- T5: P2 周期冲撞 300±5%（§4.4；进入 P2 立即首次冲撞）----
 	boss.global_position = player.global_position + Vector2(-100, 0)  # 距 100：触发（<160）→ 立即冲撞
@@ -92,10 +92,10 @@ func _run() -> void:
 	_check("T6_p2_burst", burst_ok and gap_ok,
 		"bursts=%s frames=%s (期望 2 轮×3 发，间隔 ≈120 帧=2.0s)" % [shots, shot_frames])
 
-	# ---- T7: 累计 120 伤害死亡（60+10+50）+ 掉 R01（金币+20/经验+20→升级 LV2、经验归 0）----
+	# ---- T7: 累计 240 伤害死亡（120+10+110）+ 掉 R01（金币+20/经验+20→升级 LV2、经验归 0）----
 	var boss_died: Array = [0]
 	boss.died.connect(func() -> void: boss_died[0] += 1)
-	boss.take_damage(50)
+	boss.take_damage(110)
 	for i in 2:
 		await physics_frame
 	var boss_gone: bool = not is_instance_valid(boss) or boss.is_queued_for_deletion()
