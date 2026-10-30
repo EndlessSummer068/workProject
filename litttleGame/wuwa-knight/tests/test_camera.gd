@@ -49,7 +49,7 @@ func _run() -> void:
 	# 精英实装（L02-P0-04）后 §6.2 A2 含 E04/E05：相机测试的传送会误触精英追击/射击，
 	# 叠加伤害可能致死（死亡弹窗+paused 会卡死后续 await）→ 开测先全歼敌人（相机断言不需要活敌）
 	for child in level.get_children():
-		if child is EnemyE01 or child is EnemyE02 or child is EnemyE04 or child is EnemyE05:
+		if child is EnemyE01 or child is EnemyE02 or child is EnemyE04 or child is EnemyE05 or child is EnemyB02:
 			child.take_damage(999)
 
 	# TC0: 出生对齐：视野中心=出生点的区域钳制中心（出生房偏左 → 中心 x=192）

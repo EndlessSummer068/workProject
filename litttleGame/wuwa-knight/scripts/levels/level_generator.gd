@@ -21,6 +21,7 @@ const E01_SCENE := preload("res://scenes/enemies/e01.tscn")
 const E02_SCENE := preload("res://scenes/enemies/e02.tscn")
 const E04_SCENE := preload("res://scenes/enemies/e04.tscn")  # §4.4 精英（L02-P0-04）
 const E05_SCENE := preload("res://scenes/enemies/e05.tscn")  # §4.4 精英（L02-P0-04）
+const B02_SCENE := preload("res://scenes/enemies/b02.tscn")  # §4.4 小 Boss（L02-P0-05）
 const DOOR_SCENE := preload("res://scenes/levels/door_gate.tscn")
 const SHOP_POINT_SCENE := preload("res://scenes/levels/shop_point.tscn")  # §5 商店 S（L02-P0-02a）
 const SHOP_PANEL_SCENE := preload("res://scenes/ui/shop_panel.tscn")     # §8 商店面板（L02-P0-02a）
@@ -38,6 +39,8 @@ var _shop_point: ShopPoint = null   # 商店 S 实体（§5，L02-P0-02a；地�
 var _shop_panel: ShopPanel = null   # 商店面板（§8，L02-P0-02a）
 var _chests: Array[Chest] = []      # 宝箱 R02 实体（§5，L02-P0-02b）
 var _chest_panel: ChestPanel = null # 宝箱 3 选 1 面板（§8，L02-P0-02b，共享一个）
+var _hud: HUD = null            # HUD（§8，L01-P1-02；L02-P0-05 通关提示用）
+var _boss_defeated := false     # 小 Boss 是否已击败（§9 通关提示，L02-P0-05）
 var _areas_cleared := {}      # area_id -> bool（§2：出生房/无敌人区域视为已清）
 var _area_enemies := {}       # area_id -> Array[CharacterBody2D]（E01/E02，L02-P0-03 起混编）
 var _grid := {}               # Vector2i(col,row) -> area_id
@@ -141,6 +144,7 @@ func _ready() -> void:
 		player.died.connect(_on_player_died)  # §9 死亡弹窗（L01-P0-08）
 		var hud: HUD = HUD_SCENE.instantiate()
 		add_child(hud)
+		_hud = hud
 		hud.bind_player(player)  # §8 HUD 数据绑定（L01-P1-02）
 		_shop_panel = SHOP_PANEL_SCENE.instantiate()  # §8 商店面板（L02-P0-02a，初始隐藏）
 		add_child(_shop_panel)
@@ -192,6 +196,10 @@ func _spawn_entities(area_id: String, data: Dictionary, origin: Vector2i) -> voi
 				elif id == "E05":
 					enemy_scene = E05_SCENE
 				_spawn_enemy(enemy_scene, area_id, pos)
+			"B02":
+				# §4.4 小 Boss（L02-P0-05）：A8 唯一；死亡 → 通关占位提示（§9）
+				var boss: CharacterBody2D = _spawn_enemy(B02_SCENE, area_id, pos)
+				boss.died.connect(_on_boss_died)
 			"S":
 				_shop_point = SHOP_POINT_SCENE.instantiate()  # §5 商店 S 落位（L02-P0-02a）
 				add_child(_shop_point)
@@ -214,7 +222,7 @@ func _spawn_entities(area_id: String, data: Dictionary, origin: Vector2i) -> voi
 
 ## 敌人生成+区域注册（§2 封禁/已清判定）+ 死亡接线（§4.1 击杀回蓝、区域清空）。
 ## E01/E02/E04/E05 共用（L02-P0-03/P0-04）；回蓝值由敌人 mp_gain 字段区分（小怪+3、精英+6）。
-func _spawn_enemy(scene: PackedScene, area_id: String, pos: Vector2) -> void:
+func _spawn_enemy(scene: PackedScene, area_id: String, pos: Vector2) -> CharacterBody2D:
 	var enemy: CharacterBody2D = scene.instantiate()
 	add_child(enemy)
 	enemy.global_position = pos
@@ -225,6 +233,7 @@ func _spawn_enemy(scene: PackedScene, area_id: String, pos: Vector2) -> void:
 	enemy.died.connect(_on_area_enemy_died.bind(area_id))
 	if player != null:
 		enemy.died.connect(_on_enemy_mp_gain.bind(enemy))  # §4.1 击杀回蓝（经死亡信号驱动，TECH §12）
+	return enemy
 
 # ---------- 房门（§2） ----------
 ## 门格按边缘分组（连续 4 格=一扇门），生成 DoorGate；方向决定邻接区域（edge key）。
@@ -285,6 +294,15 @@ func _edge_key(a: String, b: String) -> String:
 func _on_enemy_mp_gain(enemy: CharacterBody2D) -> void:
 	if player != null and player.has_method("gain_mp"):
 		player.gain_mp(enemy.mp_gain)
+
+## 小 Boss 击败 → §9 通关占位提示（L02-P0-05）：仅显示文案，不切场景/不改操作（成长带入归 L03）。
+func _on_boss_died() -> void:
+	if _boss_defeated:
+		return
+	_boss_defeated = true
+	print("[Level] 小 Boss B02 击败 → L02 通关（占位提示）")
+	if _hud != null:
+		_hud.show_clear_banner("L02 通关")
 
 ## 区域敌人全灭 → 区域已清（§2）→ 仅解锁门所在区域一侧的门（L01-P0-07e：邻区已清不连带解锁）。
 func _on_area_enemy_died(area_id: String) -> void:

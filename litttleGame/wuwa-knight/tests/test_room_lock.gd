@@ -79,7 +79,7 @@ func _run() -> void:
 	var chest_found := 0
 	var chest_ok := true
 	for c in level.get_children():
-		if c is EnemyE01 or c is EnemyE02 or c is EnemyE04 or c is EnemyE05:
+		if c is EnemyE01 or c is EnemyE02 or c is EnemyE04 or c is EnemyE05 or c is EnemyB02:
 			enemies_total += 1
 			var rect: Rect2 = c.get("room_rect")
 			if rect.size != Vector2.ZERO:

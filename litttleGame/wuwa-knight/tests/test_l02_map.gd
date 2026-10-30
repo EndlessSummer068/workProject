@@ -37,11 +37,12 @@ func _run() -> void:
 	var ok2: bool = cam.limit_right == 208 * 16 and cam.limit_bottom == 52 * 16
 	_check("T2 map_208x52", ok2, "limit_right=%d(期望3328) limit_bottom=%d(期望832)" % [cam.limit_right, cam.limit_bottom])
 
-	# T3: 场景敌人与文档计数一致（E01/E02 小兵 + E04/E05 精英，L02-P0-04；类型正确）
+	# T3: 场景敌人与文档计数一致（E01/E02 小兵 + E04/E05 精英 + B02 小 Boss，L02-P0-04/P0-05；类型正确）
 	var e01_nodes: Array = []
 	var e02_nodes: Array = []
 	var e04_nodes: Array = []
 	var e05_nodes: Array = []
+	var b02_nodes: Array = []
 	for child in level.get_children():
 		if child is EnemyE01:
 			e01_nodes.append(child)
@@ -51,33 +52,37 @@ func _run() -> void:
 			e04_nodes.append(child)
 		elif child is EnemyE05:
 			e05_nodes.append(child)
+		elif child is EnemyB02:
+			b02_nodes.append(child)
 	var ok3: bool = e01_nodes.size() == int(doc_counts.get("E01", 0)) and e02_nodes.size() == int(doc_counts.get("E02", 0)) \
 		and e04_nodes.size() == int(doc_counts.get("E04", 0)) and e05_nodes.size() == int(doc_counts.get("E05", 0)) \
+		and b02_nodes.size() == int(doc_counts.get("B02", 0)) \
 		and e01_nodes.size() >= 8 and e02_nodes.size() >= 8 and e04_nodes.size() >= 5 and e05_nodes.size() >= 5
-	_check("T3 enemies_spawned", ok3, "场景 E01=%d/E02=%d/E04=%d/E05=%d vs 文档 %d/%d/%d/%d（§6.3 小兵+精英）" % [e01_nodes.size(), e02_nodes.size(), e04_nodes.size(), e05_nodes.size(), doc_counts.get("E01", 0), doc_counts.get("E02", 0), doc_counts.get("E04", 0), doc_counts.get("E05", 0)])
+	_check("T3 enemies_spawned", ok3, "场景 E01=%d/E02=%d/E04=%d/E05=%d/B02=%d vs 文档 %d/%d/%d/%d/%d（§6.3 小兵+精英+小 Boss）" % [e01_nodes.size(), e02_nodes.size(), e04_nodes.size(), e05_nodes.size(), b02_nodes.size(), doc_counts.get("E01", 0), doc_counts.get("E02", 0), doc_counts.get("E04", 0), doc_counts.get("E05", 0), doc_counts.get("B02", 0)])
 
-	# T4: 未实装实体在文档中存在（S/T/B02/R02/E03 由 §6.3 布局声明；E04/E05 已随 L02-P0-04 实装移出）
+	# T4: 未实装实体在文档中存在（S/T/R02 由 §6.3 布局声明；E04/E05/B02 已随 L02-P0-04/05 实装移出）
 	var ok4: bool = int(doc_counts.get("S", 0)) == 1 and int(doc_counts.get("T", 0)) == 1 \
-		and int(doc_counts.get("B02", 0)) == 1 and int(doc_counts.get("R02", 0)) >= 1
-	_check("T4 pending_entities_in_doc", ok4, "文档计数=%s（S/T/B02=1，R02≥1）" % [doc_counts])
+		and int(doc_counts.get("R02", 0)) >= 1
+	_check("T4 pending_entities_in_doc", ok4, "文档计数=%s（S/T=1，R02≥1）" % [doc_counts])
 
-	# T5: 未实装实体未生成节点（打印跳过、不报错）：S 已随 L02-P0-02a 实装（ShopPoint 合法）；
-	# 传送点 T/Boss B02/自爆虫 E03 仍未实装，场景不应出现其节点
+	# T5: 未实装实体未生成节点（打印跳过、不报错）：S/R02/B02 已实装（ShopPoint/Chest/EnemyB02 合法）；
+	# 传送点 T/自爆虫 E03 仍未实装，场景不应出现其节点
 	var unknown := []
 	for child in level.get_children():
 		if child is CharacterBody2D and not (child is EnemyE01) and not (child is EnemyE02) \
-			and not (child is EnemyE04) and not (child is EnemyE05) and child != level.player:
+			and not (child is EnemyE04) and not (child is EnemyE05) and not (child is EnemyB02) and child != level.player:
 			unknown.append(child.name)
 		elif child is Area2D and not (child is ShopPoint) and not (child is Chest):
 			unknown.append(child.name)  # S/R02 已随 L02-P0-02a/02b 实装（ShopPoint/Chest 合法）；T 若误生成多为 Area2D
 	_check("T5 skip_no_nodes", unknown.is_empty(), "未知实体节点=%s（期望空=仅打印跳过）" % [unknown])
 
-	# T6: A8 B02 位置预留（§6.3 A8 中心 B02；解析格位在 A8 房间内部且非边缘）
+	# T6: A8 B02 落位（§6.3 A8 中心 B02）：文档格位与实装节点均在 A8 房间内部（非边缘）
 	var a8_rect: Rect2 = level._room_rects["A8"]
 	var b02_entry: Dictionary = b02s[0]
 	var b02_px: Vector2 = Vector2(b02_entry["cell"] + level._area_grid["A8"] * Vector2i(44, 32)) * 16 + Vector2(8, 8)
-	var ok6: bool = not b02s.is_empty() and a8_rect.grow(-16).has_point(b02_px)
-	_check("T6 b02_reserved", ok6, "B02 格位=%s → px=%s A8=%s（房间内部）" % [b02_entry["cell"], b02_px, a8_rect])
+	var ok6: bool = not b02s.is_empty() and b02_nodes.size() == 1 \
+		and a8_rect.grow(-16).has_point(b02_px) and a8_rect.grow(-16).has_point(b02_nodes[0].global_position)
+	_check("T6 b02_spawned_in_a8", ok6, "B02 格位=%s → px=%s 实装=%s A8=%s（房间内部）" % [b02_entry["cell"], b02_px, b02_nodes[0].global_position if b02_nodes.size() == 1 else "无", a8_rect])
 
 	# T7: 门=16 扇（§6.3 门格分布：A1S/A2NE/A3WNE/A4SE/A5WS/A6WNE/A7WE/A8W）
 	var ok7: bool = level.doors.size() == 16

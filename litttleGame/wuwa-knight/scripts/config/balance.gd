@@ -68,6 +68,25 @@ const R01_EXP_ELITE := 10                     # §4.5 经验 精英+10（提案 
 const R01_COIN_ELITE := 5                     # §4.5 金币 精英+5（Q5）
 const BULLET_POOL_PRELOAD := 64                # TECH §13 池预容量 64
 const BULLET_POOL_MAX := 256                   # TECH §13 池上限 256
+# ---- 小 Boss B02（§4.4，L02-P0-05） ----
+const B02_MAX_HP := 120                        # §4.4 B02 HP 120（提案）
+const B02_MOVE_SPEED: float = 90.0             # §4.4 B02 移速 90 px/s（提案）
+const B02_CHARGE_SPEED: float = 300.0          # §4.4 B02 冲撞 300 px/s（提案）
+const B02_BULLET_DAMAGE := 1                   # §4.4 B02 弹伤害 1（提案）
+const B02_CHARGE_DAMAGE := 2                   # §4.4 B02 冲撞伤害 2（提案）
+const B02_TRIGGER_RADIUS: float = 160.0        # §4.4 B02 追击触发半径 160 px（借 E02 提案）
+const B02_ATTACK_RANGE: float = 128.0          # §4.4 B02 站定射击距离 128 px（借 E02 提案）
+const B02_CONTACT_RADIUS: float = 20.0         # §4.4 B02 冲撞接触判定半径 20 px（借 E01 2026-10-29 用户指令值，提案）
+const B02_P1_SHOOT_INTERVAL: float = 1.2       # §4.4 B02 P1 单发弹间隔 1.2 s（提案）
+const B02_P2_SHOOT_INTERVAL: float = 2.0       # §4.4 B02 P2 3 连弹间隔 2 s（提案）
+const B02_P2_BURST_COUNT := 3                  # §4.4 B02 P2 每轮连弹发数 3（提案）
+const B02_P2_BURST_SPREAD_DEG: float = 15.0    # §4.4 B02 P2 连弹扇形 ±15°（提案）
+const B02_CHARGE_INTERVAL: float = 3.0         # §4.4 B02 周期冲撞间隔 3.0 s（提案）
+const B02_CHARGE_DURATION: float = 0.6         # §4.4 B02 冲撞持续 0.6 s（提案）
+const B02_PHASE2_HP := 60                      # §4.4 B02 P2 阈值 HP≤50%=60（提案）
+const B02_ROOM_MARGIN: float = 12.0            # §4.4 区域房钳制内边距=B02 碰撞盒半宽 12（§7.1 24×24）
+const R01_EXP_BOSS := 20                       # §4.5 经验 Boss/小 Boss+20（提案，L02-P0-05 重列）
+const R01_COIN_BOSS := 20                      # §4.5 金币 Boss+20（Q5）
 # ---- 商店（§4.5，L02-P0-02a；2026-10-29 用户指令+提案） ----
 const PLAYER_START_COINS := 200            # §4.5 玩家开局金币 200（2026-10-29 用户指令）
 const SHOP_INTERACT_RADIUS: float = 32.0  # §4.5 商店交互半径 2 tile=32px（提案）

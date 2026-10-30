@@ -127,6 +127,7 @@ const GOLD_SMALL := 2                 # §4.5 金币：小怪
 - 玩家：`enum State { IDLE, MOVE }`（按需扩展）；K 技能（L01-P2-01）=瞬发直伤：经信号 `skill_used` / `skill_cooldown_changed` 驱动 + 瞬时扇形判定实体实装，不占用持续状态；ATTACK/ULTIMATE/HURT/DEAD 等状态随 L 大招等二期扩展。
 - 敌人：`enum State { IDLE, CHASE, ATTACK, HURT, DEAD }`，E03 自爆虫追加 `SELF_DESTRUCT`；B01 用 `enum State { PHASE1, PHASE2, PHASE3 }`（阶段定义见 GAME.md §4.4）；B02 用 `enum State { PHASE1, PHASE2 }`（GAME.md §4.4 B02，L02 小 Boss）。
 - 每个状态机必须发统一信号：`signal state_changed(from: State, to: State)`；禁止跨节点直接改别人状态，只经信号/方法。
+- Boss/小 Boss 阶段（L02-P0-05）：阶段阈值在 `take_damage` 内判定，跨入新阶段时**一次性**发 `phase_changed(phase)`（不可重复触发）；周期行为（冲撞/连弹）用独立计时器驱动，不阻塞状态机其它逻辑。
 - 区域房钳制（GAME.md §4.4 2026-10-29 用户指令：敌人不走出区域房）：LevelGenerator 在 `_spawn_enemy` 时把该区域房矩形（`_room_rects[area_id]`，px 含墙）注入敌人 `room_rect` 属性；敌人 `_physics_process` 在 `move_and_slide()` 后将 `global_position` clamp 到 `[rect.pos+margin, rect.end−margin]`（margin=`Balance.ENEMY_ROOM_MARGIN`=8px 敌人半宽）；`room_rect` 为空（test_arena 手摆场景）不钳制。走廊无敌人（§2），无需走廊钳制。
 
 ## 12. 信号与分组

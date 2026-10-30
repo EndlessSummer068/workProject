@@ -25,6 +25,7 @@ var _ult_remaining: float = 0.0  # L 冷却剩余（s），由 ultimate_cooldown
 @onready var _l_slot: ColorRect = $LSlot
 @onready var _l_label: Label = $LSlot/LLabel
 @onready var _ult_hint: Label = $UltHint
+@onready var _clear_label: Label = $ClearLabel
 
 func _ready() -> void:
 	_set_k_ready()  # 初始就绪态（§8：就绪=「K」+#F2D57E 高亮）
@@ -115,3 +116,8 @@ func _set_l_ready() -> void:
 	_l_label.text = "L"
 	_l_slot.modulate.a = 1.0
 	_ult_hint.visible = false
+
+## 通关占位提示（GAME §9，L02-P0-05）：屏幕中央显示文案，不改变操作、不切场景。
+func show_clear_banner(text: String) -> void:
+	_clear_label.text = text
+	_clear_label.visible = true
